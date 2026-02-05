@@ -41,7 +41,8 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-st.title("🏏 Kings Winter Nets Booking")
+st.subheader("🏏 Kings Winter Nets Booking")
+
 DEBUG = False
 if _secret_bool("DEBUG_MODE"):
     DEBUG = st.sidebar.checkbox("Debug mode", value=False)
@@ -191,7 +192,7 @@ def _debug_action(action: str, responses, context: str = ""):
 # EMAIL ENTRY
 # --------------------------------------------------
 email_input = st.text_input(
-    "Your email address",
+    "Your username / email address",
     placeholder="you@example.com",
     key="email",
 )
@@ -364,7 +365,7 @@ st.divider()
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
-st.subheader("Available sessions")
+st.subheader("Book Available Sessions")
 
 for s in sessions:
     session_id = s["id"]
@@ -374,7 +375,7 @@ for s in sessions:
     col1, col2, col3 = st.columns([3, 1, 1])
 
     with col1:
-        st.markdown(f"## {s.get('notes') or 'Net Session'}")
+        st.markdown(f"### {s.get('notes') or 'Net Session'}")
         location = s.get("location") or ""
         start_line = fmt_start(s["start_at"])
         line = f"{start_line} - {location}" if location else start_line
