@@ -61,7 +61,7 @@ st.markdown(
   flex-wrap: nowrap;
 }}
 .logo-row img {{
-  width: 64px;
+  width: 100px;
   height: auto;
 }}
 </style>
