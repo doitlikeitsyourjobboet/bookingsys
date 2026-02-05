@@ -7,6 +7,35 @@ from datetime import datetime, timezone, time
 # --------------------------------------------------
 st.set_page_config(page_title="Admin – Nets Booking", layout="wide")
 
+def _has_secret(key: str) -> bool:
+    try:
+        st.secrets[key]
+        return True
+    except Exception:
+        return False
+
+
+REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "ADMIN_PASSWORD"]
+missing = [key for key in REQUIRED_SECRETS if not _has_secret(key)]
+if missing:
+    st.error(f"Missing Streamlit secrets: {', '.join(missing)}")
+    st.info(
+        "Add them to `.streamlit/secrets.toml` for local dev, or set them in "
+        "Streamlit Cloud under App settings > Secrets."
+    )
+    st.stop()
+
+
+def _secret_bool(key: str, default: bool = False) -> bool:
+    try:
+        value = st.secrets[key]
+    except Exception:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
 
 supabase = create_client(
@@ -14,8 +43,9 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-role = supabase.rpc("debug_current_role").execute().data
-st.write("DB role:", role)
+if _secret_bool("DEBUG_MODE"):
+    role = supabase.rpc("debug_current_role").execute().data
+    st.sidebar.write("DB role:", role)
 
 # --------------------------------------------------
 # FORMATTERS
@@ -62,7 +92,9 @@ if not st.session_state.admin_authed:
 # --------------------------------------------------
 st.title("🛠️ Admin – Nets Booking")
 st.caption("Manage users, bookings, and sessions.")
-DEBUG = st.sidebar.checkbox("Debug mode", value=False)
+DEBUG = False
+if _secret_bool("DEBUG_MODE"):
+    DEBUG = st.sidebar.checkbox("Debug mode", value=False)
 
 if DEBUG and st.session_state.get("last_debug"):
     st.info("Last action debug")

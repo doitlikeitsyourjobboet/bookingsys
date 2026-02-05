@@ -2,12 +2,39 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime, timezone
 
-##Im trying to force an update
-
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
 st.set_page_config(page_title="Nets Booking", layout="wide")
+
+def _has_secret(key: str) -> bool:
+    try:
+        st.secrets[key]
+        return True
+    except Exception:
+        return False
+
+
+REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
+missing = [key for key in REQUIRED_SECRETS if not _has_secret(key)]
+if missing:
+    st.error(f"Missing Streamlit secrets: {', '.join(missing)}")
+    st.info(
+        "Add them to `.streamlit/secrets.toml` for local dev, or set them in "
+        "Streamlit Cloud under App settings > Secrets."
+    )
+    st.stop()
+
+
+def _secret_bool(key: str, default: bool = False) -> bool:
+    try:
+        value = st.secrets[key]
+    except Exception:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
 
 supabase = create_client(
     st.secrets["SUPABASE_URL"],
@@ -15,7 +42,9 @@ supabase = create_client(
 )
 
 st.title("🏏 Nets Booking")
-DEBUG = st.sidebar.checkbox("Debug mode", value=False)
+DEBUG = False
+if _secret_bool("DEBUG_MODE"):
+    DEBUG = st.sidebar.checkbox("Debug mode", value=False)
 
 if DEBUG and st.session_state.get("last_debug"):
     st.info("Last action debug")

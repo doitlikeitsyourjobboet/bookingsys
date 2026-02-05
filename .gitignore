@@ -1,1 +1,18 @@
 .streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+*.code-workspace
+
+# Local archives
+old versions/
+20260205/
