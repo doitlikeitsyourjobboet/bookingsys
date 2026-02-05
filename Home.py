@@ -41,7 +41,7 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-st.subheader("🏏 Kings Winter Nets Booking")
+st.subheader("🏏 Kings Winter Nets 2026")
 
 DEBUG = False
 if _secret_bool("DEBUG_MODE"):
@@ -367,7 +367,7 @@ st.divider()
 # --------------------------------------------------
 st.subheader("Book Available Sessions")
 
-for s in sessions:
+for i, s in enumerate(sessions):
     session_id = s["id"]
     slots_remaining = s["slots_remaining"]
     capacity = s["capacity"]
@@ -449,3 +449,6 @@ for s in sessions:
                     st.markdown(f"- **👉 {n} (You)**")
                 else:
                     st.write(f"- {n}")
+    if i < len(sessions) - 1:
+        st.divider()
+
