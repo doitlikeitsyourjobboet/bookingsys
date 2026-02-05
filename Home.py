@@ -41,11 +41,14 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-logo_col1, logo_col2, _ = st.columns([0.5, 0.5, 8])
+logo_col1, logo_col2, logo_col3 = st.columns([0.6,0.6, 8 ])
 with logo_col1:
-    st.image("visuals/pluckys.png", width=80)
-with logo_col2:
-    st.image("visuals/bombers.png", width=80)
+    st.image("visuals/pluckys.png", width=80)  
+with logo_col2:    
+    st.image("visuals/bombers.png", width=80) 
+
+    
+    
 
 st.subheader("Kings Winter Nets ")
 st.text("🏏🚀🏏🚀🏏🚀🏏🚀🍺🍺")
