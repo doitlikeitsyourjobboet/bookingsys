@@ -1,6 +1,7 @@
 ##we are now public
 
 import streamlit as st
+import base64
 from supabase import create_client
 from datetime import datetime, timezone
 
@@ -41,14 +42,36 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-logo_col1, logo_col2, logo_col3 = st.columns([0.6,0.6, 8 ])
-with logo_col1:
-    st.image("visuals/pluckys.png", width=80)  
-with logo_col2:    
-    st.image("visuals/bombers.png", width=80) 
+def _img_to_data_uri(path: str) -> str:
+    with open(path, "rb") as f:
+        data = base64.b64encode(f.read()).decode("ascii")
+    return f"data:image/png;base64,{data}"
 
-    
-    
+logo_pluckys = _img_to_data_uri("visuals/pluckys.png")
+logo_bombers = _img_to_data_uri("visuals/bombers.png")
+
+st.markdown(
+    f"""
+<style>
+.logo-row {{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}}
+.logo-row img {{
+  width: 64px;
+  height: auto;
+}}
+</style>
+<div class="logo-row">
+  <img src="{logo_pluckys}" alt="Pluckys logo">
+  <img src="{logo_bombers}" alt="Bombers logo">
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 st.subheader("Kings Winter Nets ")
 st.text("🏏🚀🏏🚀🏏🚀🏏🚀🍺🍺")
