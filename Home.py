@@ -2,6 +2,8 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime, timezone
 
+##Im trying to force an update
+
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
