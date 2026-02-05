@@ -41,7 +41,9 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-st.subheader("🏏 Kings Winter Nets 2026")
+st.subheader("Kings Winter Nets ")
+st.text("🏏🚀🏏🚀🏏🚀🏏🚀🍺🍺")
+st.caption("Book your spot for our winter net sessions!")
 
 DEBUG = False
 if _secret_bool("DEBUG_MODE"):
@@ -372,14 +374,14 @@ for i, s in enumerate(sessions):
     slots_remaining = s["slots_remaining"]
     capacity = s["capacity"]
 
-    col1, col2, col3 = st.columns([3, 1, 1])
+    col1, col2, col3, col4 = st.columns([1, 0.5, 0.5, 3])
 
     with col1:
-        st.markdown(f"### {s.get('notes') or 'Net Session'}")
+        st.markdown(f"##### {s.get('notes') or 'Net Session'}")
         location = s.get("location") or ""
         start_line = fmt_start(s["start_at"])
         line = f"{start_line} - {location}" if location else start_line
-        st.markdown(f"#### {line}")
+        st.markdown(f"###### {line}")
         st.caption(f"Slots: **{slots_remaining} / {capacity}**")
 
     with col2:
