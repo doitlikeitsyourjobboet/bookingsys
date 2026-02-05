@@ -8,23 +8,20 @@ from datetime import datetime, timezone, time
 st.set_page_config(page_title="Admin – Nets Booking", layout="wide")
 
 def _has_secret(key: str) -> bool:
-    try:
-        st.secrets[key]
-        return True
-    except Exception:
-        return False
+    return key in st.secrets
 
 
-REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "ADMIN_PASSWORD"]
-missing = [key for key in REQUIRED_SECRETS if not _has_secret(key)]
+REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
+
+missing = [k for k in REQUIRED_SECRETS if not _has_secret(k)]
 if missing:
-    st.error(f"Missing Streamlit secrets: {', '.join(missing)}")
+    st.error("Missing required configuration.")
+    st.code("\n".join(missing))
     st.info(
-        "Add them to `.streamlit/secrets.toml` for local dev, or set them in "
-        "Streamlit Cloud under App settings > Secrets."
+        "For local dev: add them to `.streamlit/secrets.toml`\n"
+        "For Streamlit Cloud: App → Settings → Secrets"
     )
     st.stop()
-
 
 def _secret_bool(key: str, default: bool = False) -> bool:
     try:
@@ -35,12 +32,21 @@ def _secret_bool(key: str, default: bool = False) -> bool:
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
+def _get_secret(key: str, default=None):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return default
+
 
 ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"]
+SUPABASE_ADMIN_KEY = _get_secret("SUPABASE_SERVICE_ROLE_KEY", SUPABASE_ANON_KEY)
 
 supabase = create_client(
-    st.secrets["SUPABASE_URL"],
-    st.secrets["SUPABASE_ANON_KEY"],
+    SUPABASE_URL,
+    SUPABASE_ADMIN_KEY,
 )
 
 if _secret_bool("DEBUG_MODE"):
@@ -154,7 +160,8 @@ def delete_user_completely(reg):
     resp1 = supabase.table("bookings_email").delete().eq("email", email).execute()
     resp2 = supabase.table("allowed_emails").delete().eq("email", email).execute()
     resp3 = supabase.table("registrations").delete().eq("id", reg["id"]).execute()
-    return resp1, resp2, resp3
+    deleted = bool(resp3.data)
+    return resp1, resp2, resp3, deleted
 
 
 def remove_booking(booking_id):
@@ -221,13 +228,19 @@ def render_reg_section(title, rows, allow_approve, allow_reject):
                     refresh()
             with c4:
                 if st.button("🗑️ Delete", key=f"d_{r['id']}"):
-                    resp1, resp2, resp3 = delete_user_completely(r)
+                    resp1, resp2, resp3, deleted = delete_user_completely(r)
                     _debug_action(
                         "delete_user_completely",
                         [resp1, resp2, resp3],
                         context=f"id={r['id']} email={r['email']}",
                     )
-                    refresh()
+                    if deleted:
+                        refresh()
+                    else:
+                        st.error(
+                            "Delete failed. This usually means the admin client "
+                            "does not have permission to delete registrations."
+                        )
 
 render_reg_section("🟡 Pending", pending, True, True)
 render_reg_section("✅ Approved", approved, False, True)

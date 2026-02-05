@@ -8,20 +8,18 @@ from datetime import datetime, timezone
 st.set_page_config(page_title="Nets Booking", layout="wide")
 
 def _has_secret(key: str) -> bool:
-    try:
-        st.secrets[key]
-        return True
-    except Exception:
-        return False
+    return key in st.secrets
 
 
 REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
-missing = [key for key in REQUIRED_SECRETS if not _has_secret(key)]
+
+missing = [k for k in REQUIRED_SECRETS if not _has_secret(k)]
 if missing:
-    st.error(f"Missing Streamlit secrets: {', '.join(missing)}")
+    st.error("Missing required configuration.")
+    st.code("\n".join(missing))
     st.info(
-        "Add them to `.streamlit/secrets.toml` for local dev, or set them in "
-        "Streamlit Cloud under App settings > Secrets."
+        "For local dev: add them to `.streamlit/secrets.toml`\n"
+        "For Streamlit Cloud: App → Settings → Secrets"
     )
     st.stop()
 
@@ -41,7 +39,7 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-st.title("🏏 Nets Booking")
+st.title("🏏 Kings Winter Nets Booking")
 DEBUG = False
 if _secret_bool("DEBUG_MODE"):
     DEBUG = st.sidebar.checkbox("Debug mode", value=False)
@@ -139,8 +137,15 @@ def parse_iso(ts: str) -> datetime:
     return datetime.fromisoformat(ts)
 
 
+def _day_suffix(day: int) -> str:
+    if 11 <= day % 100 <= 13:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+
+
 def fmt_date(dt: datetime) -> str:
-    return dt.strftime("%d/%b/%Y").upper()
+    day = dt.day
+    return f"{day}{_day_suffix(day)} {dt.strftime('%b %Y')}"
 
 
 def fmt_time(dt: datetime) -> str:
@@ -149,7 +154,7 @@ def fmt_time(dt: datetime) -> str:
 
 def fmt_start(start: str) -> str:
     dt = parse_iso(start)
-    return f"{fmt_date(dt)} {fmt_time(dt)}"
+    return f"{fmt_date(dt)} @{fmt_time(dt)}"
 
 
 def is_past(dt: datetime) -> bool:
