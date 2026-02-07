@@ -3,6 +3,7 @@
 import streamlit as st
 import base64
 from supabase import create_client
+from streamlit.errors import StreamlitAPIException
 from datetime import datetime, timezone
 import time
 
@@ -86,10 +87,35 @@ if DEBUG and st.session_state.get("last_debug"):
     st.info("Last action debug")
     st.code(st.session_state.last_debug, language="text")
 
+AUTH_EMAIL_KEY = "auth_email"
+AUTH_EMAIL_INPUT_KEY = "auth_email_input"
+
+
+def _set_state_safe(key: str, value, user_message: str | None = None) -> bool:
+    try:
+        st.session_state[key] = value
+        return True
+    except StreamlitAPIException as exc:
+        if DEBUG:
+            st.error(f"Session state update failed for key: {key}")
+            st.code(str(exc))
+        st.warning(
+            user_message
+            or "We hit a temporary session issue. Please refresh and try again."
+        )
+        return False
+
+
+def _get_auth_email() -> str:
+    value = st.session_state.get(AUTH_EMAIL_KEY)
+    if isinstance(value, str):
+        return value.strip().lower()
+    return ""
+
 # Handle logout before any widgets that depend on session state.
 if st.session_state.get("do_logout"):
-    st.session_state["email"] = ""
-    st.session_state["email_input"] = ""
+    _set_state_safe(AUTH_EMAIL_KEY, "")
+    _set_state_safe(AUTH_EMAIL_INPUT_KEY, "")
     st.session_state.pop("logged_in", None)
     st.session_state.pop("last_debug", None)
     st.session_state.pop("allowed_sync_attempted", None)
@@ -239,15 +265,15 @@ def _wait_for_registration(email: str, timeout_s: float = 8.0, poll_interval_s: 
 # --------------------------------------------------
 # EMAIL ENTRY
 # --------------------------------------------------
-if st.session_state.get("logged_in") and st.session_state.get("email"):
-    email = st.session_state["email"].strip().lower()
+if st.session_state.get("logged_in") and _get_auth_email():
+    email = _get_auth_email()
 else:
     email_col, go_col, spacer_col = st.columns([1, 0.25, 8])
     with email_col:
         email_input = st.text_input(
             "Your username / email address",
             placeholder="you@example.com",
-            key="email_input",
+            key=AUTH_EMAIL_INPUT_KEY,
         )
     with go_col:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
@@ -256,7 +282,7 @@ else:
         st.empty()
 
     email = email_input.strip().lower()
-    st.session_state["email"] = email
+    _set_state_safe(AUTH_EMAIL_KEY, email)
 
 if not email:
     st.info("Enter your email to continue.")
@@ -322,9 +348,23 @@ if not allowed and not registration:
         )
 
         st.cache_data.clear()
-        st.session_state["email"] = email
-        st.session_state["logged_in"] = True
-        st.session_state["just_registered"] = True
+        ok = all(
+            [
+                _set_state_safe(
+                    AUTH_EMAIL_KEY,
+                    email,
+                    user_message="Registration worked, but we couldn't persist your session email.",
+                ),
+                _set_state_safe(
+                    "logged_in",
+                    True,
+                    user_message="Registration worked, but we couldn't complete sign-in. Please try again.",
+                ),
+                _set_state_safe("just_registered", True),
+            ]
+        )
+        if not ok:
+            st.stop()
         st.rerun()
 
     st.stop()
@@ -334,12 +374,14 @@ if not allowed and not registration:
 # --------------------------------------------------
 if allowed:
     if not st.session_state.get("logged_in"):
-        st.session_state["logged_in"] = True
+        if not _set_state_safe("logged_in", True):
+            st.stop()
         st.rerun()
     welcome_name = registration[0]["name"] if registration else "member"
     st.success(f"Welcome, {welcome_name}")
     if st.button("Log out"):
-        st.session_state["do_logout"] = True
+        if not _set_state_safe("do_logout", True):
+            st.stop()
         st.rerun()
 
 elif registration:
@@ -364,11 +406,13 @@ elif registration:
             st.error("We couldn't enable booking for your email yet.")
             st.stop()
         if not st.session_state.get("logged_in"):
-            st.session_state["logged_in"] = True
+            if not _set_state_safe("logged_in", True):
+                st.stop()
             st.rerun()
         st.success(f"Welcome, {registration[0]['name']}")
         if st.button("Log out"):
-            st.session_state["do_logout"] = True
+            if not _set_state_safe("do_logout", True):
+                st.stop()
             st.rerun()
 
     if status == "pending":

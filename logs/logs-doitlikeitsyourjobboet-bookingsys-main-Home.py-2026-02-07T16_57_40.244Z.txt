@@ -1,0 +1,261 @@
+
+[     UTC     ] Logs for bookingsys-doitlikeitsyourjob.streamlit.app/
+────────────────────────────────────────────────────────────────────────────────────────
+[22:31:07] 🚀 Starting up repository: 'bookingsys', branch: 'main', main module: 'Home.py'
+[22:31:07] 🐙 Cloning repository...
+[22:31:08] 🐙 Cloning into '/mount/src/bookingsys'...
+
+[22:31:08] 🐙 Cloned repository!
+[22:31:08] 🐙 Pulling code changes from Github...
+[22:31:08] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.13.11 environment at /home/adminuser/venv
+Resolved 75 packages in 824ms
+Prepared 75 packages in 7.67s
+Installed 75 packages in 85ms
+ + altair==6.0.0
+ + annotated-types==0.7.0
+ + anyio==4.12.1
+ + attrs==25.4.0
+ + blinker==1.9.0
+ + cachetools==6.2.6
+ + certifi==2026.1.4
+ [2026-02-05 22:31:17.469678] + cffi==2.0.0
+ + charset-normalizer==3.4.4
+ + click[2026-02-05 22:31:17.469925] ==8.3.1
+ + cryptography==46.0.4
+ + deprecation==2.1.0
+ + fsspec==2026.2.0
+ + gitdb==4.0.12
+ + gitpython==3.1.46
+ + h11==0.16.0
+ + [2026-02-05 22:31:17.470169] h2==4.3.0
+ + hpack==4.1.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + hyperframe==6.1.0
+ + idna==3.11
+ +[2026-02-05 22:31:17.470473]  jinja2==3.1.6
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown-it-py==4.0.0
+ + markupsafe==3.0.3
+ + mdurl==0.1.2[2026-02-05 22:31:17.470741] 
+ + mmh3==5.2.0
+ + multidict==6.7.1
+ + narwhals==2.16.0
+ + numpy==2.4.2
+ + packaging==26.0
+ + pandas[2026-02-05 22:31:17.471026] ==2.3.3
+ + pillow==12.1.0
+ + postgrest==2.27.3
+ + propcache==0.4.1
+ + protobuf==6.33.5
+ + pyarrow==23.0.0[2026-02-05 22:31:17.471201] 
+ + pycparser==3.0
+ + pydantic==2.12.5
+ + pydantic-core==2.41.5
+ + pydeck==0.9.1
+ + pygments==2.19.2
+ + pyiceberg==0.10.0
+ + pyjwt==2.11.0
+ + pyparsing[2026-02-05 22:31:17.471349] ==3.3.2
+ + pyroaring==1.0.3
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + realtime==2.27.3
+ + referencing==0.37.0[2026-02-05 22:31:17.471488] 
+ + requests==2.32.5
+ + rich==14.3.2
+ + rpds-py==0.30.0
+ + six==1.17.0
+ + smmap==5.0.2
+ + sortedcontainers==2.4.0[2026-02-05 22:31:17.471622] 
+ + storage3==2.27.3
+ + streamlit==1.54.0
+ + strenum==0.4.15
+ + strictyaml==1.7.3
+ + supabase==2.27.3[2026-02-05 22:31:17.471760] 
+ + supabase-auth==2.27.3
+ + supabase-functions==2.27.3
+ + tenacity==9.1.3
+ + toml==0.10.2
+ + tornado==6.5.4
+ + typing-extensions==[2026-02-05 22:31:17.471928] 4.15.0
+ + typing-inspection==0.4.2
+ + tzdata==2025.3
+ + urllib3==2.6.3
+ + watchdog==6.0.0
+ + websockets==15.0.1[2026-02-05 22:31:17.472192] 
+ + yarl==1.22.0
+Checking if Streamlit is installed
+Found Streamlit version 1.54.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.13.11 environment at /home/adminuser/venv
+Audited 1 package in 3ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[22:31:19] 🐍 Python dependencies were installed from /mount/src/bookingsys/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[22:31:20] 📦 Processed dependencies!
+
+
+
+[22:42:01] 🐙 Pulling code changes from Github...
+[22:42:02] 📦 Processing dependencies...
+[22:42:02] 📦 Processed dependencies!
+[22:42:03] 🔄 Updated app!
+[22:55:53] 🐙 Pulling code changes from Github...
+[22:55:53] 📦 Processing dependencies...
+[22:55:53] 📦 Processed dependencies!
+[22:55:54] 🔄 Updated app!
+[23:06:09] 🐙 Pulling code changes from Github...
+[23:06:10] 📦 Processing dependencies...
+[23:06:10] 📦 Processed dependencies!
+[23:06:11] 🔄 Updated app!
+[23:19:14] 🐙 Pulling code changes from Github...
+[23:19:15] 📦 Processing dependencies...
+[23:19:15] 📦 Processed dependencies!
+[23:19:16] 🔄 Updated app!
+[23:22:43] 🐙 Pulling code changes from Github...
+[23:22:43] 📦 Processing dependencies...
+[23:22:43] 📦 Processed dependencies!
+[23:22:45] 🔄 Updated app!
+[23:24:59] 🐙 Pulling code changes from Github...
+[23:24:59] 📦 Processing dependencies...
+[23:24:59] 📦 Processed dependencies!
+[23:25:00] 🔄 Updated app!
+[23:45:40] 🐙 Pulling code changes from Github...
+[23:45:41] 📦 Processing dependencies...
+[23:45:41] 📦 Processed dependencies!
+[23:45:42] 🔄 Updated app!
+2026-02-06 20:52:41.012 Session with id 3852ff0a-604d-4600-a933-09c07e86ee40 is already connected! Connecting to a new session.
+[08:51:07] 🐙 Pulling code changes from Github...
+[08:51:07] 📦 Processing dependencies...
+[08:51:07] 📦 Processed dependencies!
+[08:51:09] 🔄 Updated app!
+[09:09:00] 🐙 Pulling code changes from Github...
+[09:09:00] 📦 Processing dependencies...
+[09:09:00] 📦 Processed dependencies!
+[09:09:02] 🔄 Updated app!
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:687 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:166 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/navigation/page.  
+  py:310 in run                                                                 
+                                                                                
+  /mount/src/bookingsys/Home.py:323 in <module>                                 
+                                                                                
+    320 │   │   )                                                               
+    321 │   │                                                                   
+    322 │   │   st.cache_data.clear()                                           
+  ❱ 323 │   │   st.session_state["email"] = email                               
+    324 │   │   st.session_state["logged_in"] = True                            
+    325 │   │   st.session_state["just_registered"] = True                      
+    326 │   │   st.rerun()                                                      
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/metrics_  
+  util.py:532 in wrapped_func                                                   
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state_proxy.py:114 in __setitem__                                       
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/sa  
+  fe_session_state.py:109 in __setitem__                                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state.py:548 in __setitem__                                             
+────────────────────────────────────────────────────────────────────────────────
+StreamlitAPIException: `st.session_state.email` cannot be modified after the 
+widget with key `email` is instantiated.
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:687 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:166 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/navigation/page.  
+  py:310 in run                                                                 
+                                                                                
+  /mount/src/bookingsys/Home.py:323 in <module>                                 
+                                                                                
+    320 │   │   )                                                               
+    321 │   │                                                                   
+    322 │   │   st.cache_data.clear()                                           
+  ❱ 323 │   │   st.session_state["email"] = email                               
+    324 │   │   st.session_state["logged_in"] = True                            
+    325 │   │   st.session_state["just_registered"] = True                      
+    326 │   │   st.rerun()                                                      
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/metrics_  
+  util.py:532 in wrapped_func                                                   
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state_proxy.py:114 in __setitem__                                       
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/sa  
+  fe_session_state.py:109 in __setitem__                                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state.py:548 in __setitem__                                             
+────────────────────────────────────────────────────────────────────────────────
+StreamlitAPIException: `st.session_state.email` cannot be modified after the 
+widget with key `email` is instantiated.
+[16:56:23] 🐙 Pulling code changes from Github...
+[16:56:24] 📦 Processing dependencies...
+[16:56:24] 📦 Processed dependencies!
+[16:56:25] 🔄 Updated app!
+────────────────────── Traceback (most recent call last) ───────────────────────
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/exec_code.py:129 in exec_func_with_error_handling                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:687 in code_to_exec                                     
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/scriptru  
+  nner/script_runner.py:166 in _mpa_v1                                          
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/navigation/page.  
+  py:310 in run                                                                 
+                                                                                
+  /mount/src/bookingsys/Home.py:323 in <module>                                 
+                                                                                
+    320 │   │   )                                                               
+    321 │   │                                                                   
+    322 │   │   st.cache_data.clear()                                           
+  ❱ 323 │   │   st.session_state["email"] = email                               
+    324 │   │   st.session_state["logged_in"] = True                            
+    325 │   │   st.session_state["just_registered"] = True                      
+    326 │   │   st.rerun()                                                      
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/metrics_  
+  util.py:532 in wrapped_func                                                   
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state_proxy.py:114 in __setitem__                                       
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/sa  
+  fe_session_state.py:109 in __setitem__                                        
+                                                                                
+  /home/adminuser/venv/lib/python3.13/site-packages/streamlit/runtime/state/se  
+  ssion_state.py:548 in __setitem__                                             
+────────────────────────────────────────────────────────────────────────────────
+StreamlitAPIException: `st.session_state.email` cannot be modified after the 
+widget with key `email` is instantiated.
