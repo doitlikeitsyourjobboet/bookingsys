@@ -4,6 +4,7 @@ import streamlit as st
 import base64
 from supabase import create_client
 from datetime import datetime, timezone
+import time
 
 # --------------------------------------------------
 # CONFIG
@@ -88,6 +89,7 @@ if DEBUG and st.session_state.get("last_debug"):
 # Handle logout before any widgets that depend on session state.
 if st.session_state.get("do_logout"):
     st.session_state["email"] = ""
+    st.session_state.pop("logged_in", None)
     st.session_state.pop("last_debug", None)
     st.session_state.pop("allowed_sync_attempted", None)
     st.session_state.pop("just_registered", None)
@@ -221,24 +223,38 @@ def _debug_action(action: str, responses, context: str = ""):
         lines.append(f"\nResponse {i}:\n{_resp_summary(resp)}")
     st.session_state.last_debug = "\n".join(lines)
 
+def _wait_for_registration(email: str, timeout_s: float = 8.0, poll_interval_s: float = 0.5):
+    deadline = time.time() + timeout_s
+    last_allowed = []
+    last_registration = []
+    while time.time() < deadline:
+        last_allowed, last_registration = get_email_status(email)
+        if last_allowed or last_registration:
+            return last_allowed, last_registration
+        time.sleep(poll_interval_s)
+    return last_allowed, last_registration
+
 
 # --------------------------------------------------
 # EMAIL ENTRY
 # --------------------------------------------------
-email_col, go_col, spacer_col = st.columns([1, 0.25, 8])
-with email_col:
-    email_input = st.text_input(
-        "Your username / email address",
-        placeholder="you@example.com",
-        key="email",
-    )
-with go_col:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    st.button("GO", use_container_width=True)
-with spacer_col:
-    st.empty()
+if st.session_state.get("logged_in") and st.session_state.get("email"):
+    email = st.session_state["email"].strip().lower()
+else:
+    email_col, go_col, spacer_col = st.columns([1, 0.25, 8])
+    with email_col:
+        email_input = st.text_input(
+            "Your username / email address",
+            placeholder="you@example.com",
+            key="email",
+        )
+    with go_col:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        st.button("GO", use_container_width=True)
+    with spacer_col:
+        st.empty()
 
-email = email_input.strip().lower()
+    email = email_input.strip().lower()
 
 if not email:
     st.info("Enter your email to continue.")
@@ -246,15 +262,9 @@ if not email:
 
 allowed, registration = get_email_status(email)
 
-# --------------------------------------------------
-# POST-REGISTER HANDOFF
-# --------------------------------------------------
 if st.session_state.get("just_registered"):
     st.success("Thanks! You're approved and can book now.")
-    if st.button("Book Now"):
-        st.session_state.pop("just_registered", None)
-        st.rerun()
-    st.stop()
+    st.session_state.pop("just_registered", None)
 
 # --------------------------------------------------
 # INLINE REGISTRATION
@@ -269,30 +279,39 @@ if not allowed and not registration:
             st.warning("Please enter your full name.")
             st.stop()
 
-        try:
-            resp_reg = supabase.table("registrations").insert(
-                {
-                    "name": name,
-                    "email": email,
-                    "status": "approved",
-                    "reviewed_at": datetime.now(timezone.utc).isoformat(),
-                }
-            ).execute()
-        except Exception as exc:
-            if DEBUG:
-                st.error("Registration failed")
-                st.code(str(exc))
-            st.error("Registration failed. Please try again.")
-            st.stop()
+        with st.spinner("Registering and logging you in..."):
+            try:
+                resp_reg = supabase.table("registrations").insert(
+                    {
+                        "name": name,
+                        "email": email,
+                        "status": "approved",
+                        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                ).execute()
+            except Exception as exc:
+                if DEBUG:
+                    st.error("Registration failed")
+                    st.code(str(exc))
+                st.error("Registration failed. Please try again.")
+                st.stop()
 
-        try:
-            resp_allow = allow_email(email, name)
-        except Exception as exc:
-            if DEBUG:
-                st.error("Allow-list update failed")
-                st.code(str(exc))
-            st.error("Registered, but we couldn't enable booking for your email yet.")
-            st.stop()
+            try:
+                resp_allow = allow_email(email, name)
+            except Exception as exc:
+                if DEBUG:
+                    st.error("Allow-list update failed")
+                    st.code(str(exc))
+                st.error("Registered, but we couldn't enable booking for your email yet.")
+                st.stop()
+
+            allowed, registration = _wait_for_registration(email)
+            if not allowed and not registration:
+                st.warning(
+                    "Registration saved, but we couldn't verify it yet. "
+                    "Please try again in a few seconds."
+                )
+                st.stop()
 
         _debug_action(
             "register_and_allow",
@@ -301,6 +320,8 @@ if not allowed and not registration:
         )
 
         st.cache_data.clear()
+        st.session_state["email"] = email
+        st.session_state["logged_in"] = True
         st.session_state["just_registered"] = True
         st.rerun()
 
@@ -310,9 +331,12 @@ if not allowed and not registration:
 # STATUS GATE
 # --------------------------------------------------
 if allowed:
+    if not st.session_state.get("logged_in"):
+        st.session_state["logged_in"] = True
+        st.rerun()
     welcome_name = registration[0]["name"] if registration else "member"
-    st.sidebar.success(f"Welcome, {welcome_name}")
-    if st.sidebar.button("Log out"):
+    st.success(f"Welcome, {welcome_name}")
+    if st.button("Log out"):
         st.session_state["do_logout"] = True
         st.rerun()
 
@@ -334,11 +358,14 @@ elif registration:
             except Exception as exc:
                 if DEBUG:
                     st.error("Auto-allow failed")
-                    st.code(str(exc))
-                st.error("We couldn't enable booking for your email yet.")
-                st.stop()
-        st.sidebar.success(f"Welcome, {registration[0]['name']}")
-        if st.sidebar.button("Log out"):
+                st.code(str(exc))
+            st.error("We couldn't enable booking for your email yet.")
+            st.stop()
+        if not st.session_state.get("logged_in"):
+            st.session_state["logged_in"] = True
+            st.rerun()
+        st.success(f"Welcome, {registration[0]['name']}")
+        if st.button("Log out"):
             st.session_state["do_logout"] = True
             st.rerun()
 
