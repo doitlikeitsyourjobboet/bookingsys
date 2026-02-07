@@ -225,11 +225,19 @@ def _debug_action(action: str, responses, context: str = ""):
 # --------------------------------------------------
 # EMAIL ENTRY
 # --------------------------------------------------
-email_input = st.text_input(
-    "Your username / email address",
-    placeholder="you@example.com",
-    key="email",
-)
+email_col, go_col, spacer_col = st.columns([1, 0.25, 8])
+with email_col:
+    email_input = st.text_input(
+        "Your username / email address",
+        placeholder="you@example.com",
+        key="email",
+    )
+with go_col:
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    st.button("GO", use_container_width=True)
+with spacer_col:
+    st.empty()
+
 email = email_input.strip().lower()
 
 if not email:
