@@ -89,6 +89,7 @@ if DEBUG and st.session_state.get("last_debug"):
 # Handle logout before any widgets that depend on session state.
 if st.session_state.get("do_logout"):
     st.session_state["email"] = ""
+    st.session_state["email_input"] = ""
     st.session_state.pop("logged_in", None)
     st.session_state.pop("last_debug", None)
     st.session_state.pop("allowed_sync_attempted", None)
@@ -246,7 +247,7 @@ else:
         email_input = st.text_input(
             "Your username / email address",
             placeholder="you@example.com",
-            key="email",
+            key="email_input",
         )
     with go_col:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
@@ -255,6 +256,7 @@ else:
         st.empty()
 
     email = email_input.strip().lower()
+    st.session_state["email"] = email
 
 if not email:
     st.info("Enter your email to continue.")
