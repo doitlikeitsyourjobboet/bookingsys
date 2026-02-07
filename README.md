@@ -34,6 +34,13 @@ Run the app:
 streamlit run Home.py
 ```
 
+Run BDD tests:
+
+```powershell
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Deploy to Streamlit Cloud
 1. Push this repo to GitHub.
 2. In Streamlit Cloud, create a new app from the repo.

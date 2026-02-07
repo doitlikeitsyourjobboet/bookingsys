@@ -1,0 +1,3 @@
+-r requirements.txt
+pytest==8.4.1
+pytest-bdd==7.3.0
