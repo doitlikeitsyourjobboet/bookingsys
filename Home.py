@@ -1,4 +1,4 @@
-##we are now public
+##we are now public v2.6
 
 import streamlit as st
 import base64
