@@ -57,6 +57,42 @@ PROFILE_PREFERENCE_FIELD_CANDIDATES = (
     "playing_preference",
     "player_preference",
 )
+PROFILE_BATTING_PREFERENCE_OPTIONS = {
+    "not_set": "Not set",
+    "orthodox": "Orthodox",
+    "slogger": "Slogger",
+}
+PROFILE_BATTING_PREFERENCE_VALUES = tuple(PROFILE_BATTING_PREFERENCE_OPTIONS.keys())
+PROFILE_BATTING_PREFERENCE_FIELD_CANDIDATES = (
+    "batting_preference",
+    "batting_style",
+)
+PROFILE_BATTING_PREFERENCE_ALIASES = {
+    "authox": "orthodox",
+    "orthodx": "orthodox",
+}
+PROFILE_BOWLING_PREFERENCE_OPTIONS = {
+    "not_set": "Not set",
+    "fast": "Fast",
+    "slow": "Slow",
+    "right_arm": "Right Arm",
+    "left_arm": "Left Arm",
+    "off_spin": "Off Spin",
+    "leg_spin": "Leg Spin",
+}
+PROFILE_BOWLING_PREFERENCE_VALUES = tuple(PROFILE_BOWLING_PREFERENCE_OPTIONS.keys())
+PROFILE_BOWLING_PREFERENCE_FIELD_CANDIDATES = (
+    "bowling_preference",
+    "bowling_style",
+)
+PROFILE_BOWLING_PREFERENCE_ALIASES = {
+    "right-arm": "right_arm",
+    "rightarm": "right_arm",
+    "left-arm": "left_arm",
+    "leftarm": "left_arm",
+    "offspin": "off_spin",
+    "legspin": "leg_spin",
+}
 PROFILE_BIO_FIELD_CANDIDATES = (
     "bio",
     "about_me",
@@ -110,11 +146,28 @@ def _first_existing_field(record: dict, candidates: tuple[str, ...]) -> str | No
     return None
 
 
-def _normalize_profile_preference(value: str | None) -> str:
+def _normalize_profile_choice(
+    value: str | None,
+    allowed_values: tuple[str, ...],
+    *,
+    default: str,
+    aliases: dict[str, str] | None = None,
+) -> str:
     clean_value = str(value or "").strip().lower()
-    if clean_value in PROFILE_PREFERENCE_VALUES:
+    if aliases and clean_value in aliases:
+        clean_value = aliases[clean_value]
+    clean_value = clean_value.replace(" ", "_")
+    if clean_value in allowed_values:
         return clean_value
-    return "both"
+    return default
+
+
+def _normalize_profile_preference(value: str | None) -> str:
+    return _normalize_profile_choice(
+        value,
+        PROFILE_PREFERENCE_VALUES,
+        default="both",
+    )
 
 
 def _profile_image_to_data_uri(uploaded_file) -> str:
@@ -149,7 +202,9 @@ def _get_auth_email() -> str:
 
 
 st.title("My Profile")
-st.caption("Update your name, playing preference, and profile photo.")
+st.caption(
+    "Update your name, playing preference, batting and bowling styles, and profile photo."
+)
 
 email = _get_auth_email()
 if not email:
@@ -183,6 +238,12 @@ if profile_name_for_header and st.session_state.get("welcome_name") != profile_n
 preference_field = _first_existing_field(
     profile_record, PROFILE_PREFERENCE_FIELD_CANDIDATES
 )
+batting_preference_field = _first_existing_field(
+    profile_record, PROFILE_BATTING_PREFERENCE_FIELD_CANDIDATES
+)
+bowling_preference_field = _first_existing_field(
+    profile_record, PROFILE_BOWLING_PREFERENCE_FIELD_CANDIDATES
+)
 bio_field = _first_existing_field(profile_record, PROFILE_BIO_FIELD_CANDIDATES)
 image_field = _first_existing_field(profile_record, PROFILE_IMAGE_FIELD_CANDIDATES)
 
@@ -190,6 +251,24 @@ saved_preference = _normalize_profile_preference(
     profile_record.get(preference_field) if preference_field else None
 )
 saved_preference_index = PROFILE_PREFERENCE_VALUES.index(saved_preference)
+saved_batting_preference = _normalize_profile_choice(
+    profile_record.get(batting_preference_field) if batting_preference_field else None,
+    PROFILE_BATTING_PREFERENCE_VALUES,
+    default="not_set",
+    aliases=PROFILE_BATTING_PREFERENCE_ALIASES,
+)
+saved_batting_preference_index = PROFILE_BATTING_PREFERENCE_VALUES.index(
+    saved_batting_preference
+)
+saved_bowling_preference = _normalize_profile_choice(
+    profile_record.get(bowling_preference_field) if bowling_preference_field else None,
+    PROFILE_BOWLING_PREFERENCE_VALUES,
+    default="not_set",
+    aliases=PROFILE_BOWLING_PREFERENCE_ALIASES,
+)
+saved_bowling_preference_index = PROFILE_BOWLING_PREFERENCE_VALUES.index(
+    saved_bowling_preference
+)
 current_photo = _decode_profile_image(
     profile_record.get(image_field) if image_field else None
 )
@@ -216,6 +295,22 @@ with form_col:
             format_func=lambda value: PROFILE_PREFERENCE_OPTIONS[value],
             key="profile_preference_input",
             disabled=preference_field is None,
+        )
+        batting_preference = st.selectbox(
+            "Batting style",
+            options=list(PROFILE_BATTING_PREFERENCE_VALUES),
+            index=saved_batting_preference_index,
+            format_func=lambda value: PROFILE_BATTING_PREFERENCE_OPTIONS[value],
+            key="profile_batting_preference_input",
+            disabled=batting_preference_field is None,
+        )
+        bowling_preference = st.selectbox(
+            "Bowling style",
+            options=list(PROFILE_BOWLING_PREFERENCE_VALUES),
+            index=saved_bowling_preference_index,
+            format_func=lambda value: PROFILE_BOWLING_PREFERENCE_OPTIONS[value],
+            key="profile_bowling_preference_input",
+            disabled=bowling_preference_field is None,
         )
         profile_bio = st.text_area(
             "About you (optional)",
@@ -256,6 +351,14 @@ with form_col:
             updates = {"name": clean_name}
             if preference_field:
                 updates[preference_field] = profile_preference
+            if batting_preference_field:
+                updates[batting_preference_field] = (
+                    None if batting_preference == "not_set" else batting_preference
+                )
+            if bowling_preference_field:
+                updates[bowling_preference_field] = (
+                    None if bowling_preference == "not_set" else bowling_preference
+                )
             if bio_field:
                 updates[bio_field] = profile_bio.strip() or None
 
@@ -290,6 +393,10 @@ with form_col:
 missing_columns = []
 if preference_field is None:
     missing_columns.append("preference")
+if batting_preference_field is None:
+    missing_columns.append("batting_preference")
+if bowling_preference_field is None:
+    missing_columns.append("bowling_preference")
 if bio_field is None:
     missing_columns.append("bio")
 if image_field is None:
