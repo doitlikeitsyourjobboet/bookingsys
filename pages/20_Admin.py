@@ -1,11 +1,13 @@
 import streamlit as st
 from supabase import create_client
 from datetime import datetime, timezone, time
+from app_nav import render_compact_nav
 
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
 st.set_page_config(page_title="Admin – Nets Booking", layout="wide")
+render_compact_nav("admin", include_admin=True)
 
 def _has_secret(key: str) -> bool:
     return key in st.secrets
@@ -48,6 +50,11 @@ supabase = create_client(
     SUPABASE_URL,
     SUPABASE_ADMIN_KEY,
 )
+
+FIXTURE_TEAMS = {
+    "plucky": "Plucky",
+    "unabombers": "Unabombers",
+}
 
 if _secret_bool("DEBUG_MODE"):
     role = supabase.rpc("debug_current_role").execute().data
@@ -135,6 +142,18 @@ def _debug_action(action: str, responses, context: str = ""):
     st.session_state.last_debug = "\n".join(lines)
 
 
+def _execute_query(query, action: str, user_message: str):
+    try:
+        return query.execute()
+    except Exception as exc:
+        if DEBUG:
+            st.session_state.last_debug = f"Action: {action}\n\nError:\n{exc}"
+            st.error(f"{action} failed")
+            st.code(str(exc))
+        st.error(user_message)
+        return None
+
+
 def approve_registration(reg):
     resp1 = supabase.table("allowed_emails").upsert(
         {"email": reg["email"], "notes": f"Approved ({reg['name']})"}
@@ -169,6 +188,28 @@ def remove_booking(booking_id):
         {"status": "cancelled", "cancelled_at": utc_now()}
     ).eq("id", booking_id).execute()
     return resp
+
+
+def remove_fixture_booking(booking_id):
+    resp = supabase.table("fixture_bookings").update(
+        {"status": "cancelled", "cancelled_at": utc_now()}
+    ).eq("id", booking_id).execute()
+    return resp
+
+
+def fixture_title(fixture: dict) -> str:
+    title = str(fixture.get("title") or "").strip()
+    if title:
+        return title
+    team_key = str(fixture.get("team_key") or "").strip().lower()
+    team_label = FIXTURE_TEAMS.get(team_key, team_key.title() or "Team")
+    opponent = str(fixture.get("opponent") or "").strip()
+    if opponent:
+        return f"{team_label} vs {opponent}"
+    notes = str(fixture.get("notes") or "").strip()
+    if notes:
+        return notes
+    return f"{team_label} Fixture"
 
 
 def refresh():
@@ -349,8 +390,10 @@ for s in sessions:
 
     header = s.get("notes") or "Training Session"
     date_line = fmt_session_range(s["start_at"], s["end_at"])
+    locked = bool(s.get("locked"))
+    lock_suffix = " [LOCKED]" if locked else ""
 
-    with st.expander(f"{header} — {date_line} ({s['confirmed_count']}/{s['capacity']})"):    
+    with st.expander(f"{header} — {date_line} ({s['confirmed_count']}/{s['capacity']}){lock_suffix}"):    
         c1, c2, c3 = st.columns(3)
 
         with c1:
@@ -373,6 +416,12 @@ for s in sessions:
             nts = st.text_input(
                 "Notes", value=s.get("notes") or "", key=f"nts_{s['id']}"
             )
+            locked_toggle = st.checkbox(
+                "Locked",
+                value=locked,
+                key=f"locked_{s['id']}",
+                help="When locked, players cannot book or cancel this session.",
+            )
 
         if st.button("💾 Save", key=f"save_{s['id']}"):
             supabase.table("sessions").update(
@@ -382,6 +431,7 @@ for s in sessions:
                     "capacity": cap,
                     "location": loc,
                     "notes": nts,
+                    "locked": locked_toggle,
                 }
             ).eq("id", s["id"]).execute()
             refresh()
@@ -389,3 +439,282 @@ for s in sessions:
         if st.button("🗑️ Delete session", key=f"del_{s['id']}"):
             supabase.table("sessions").delete().eq("id", s["id"]).execute()
             refresh()
+
+# --------------------------------------------------
+# FIXTURE BOOKINGS
+# --------------------------------------------------
+st.divider()
+st.subheader("Fixture Confirmations")
+
+fixture_lookup_resp = _execute_query(
+    supabase.table("fixture_availability")
+    .select("id, team_key, title, opponent, notes, start_at, end_at")
+    .order("start_at"),
+    action="load_fixture_lookup",
+    user_message=(
+        "We couldn't load fixtures. "
+        "Run supabase/fixtures_schema.sql if fixture tables are not created yet."
+    ),
+)
+fixture_lookup_rows = fixture_lookup_resp.data if fixture_lookup_resp is not None else []
+fixture_lookup = {row["id"]: row for row in fixture_lookup_rows}
+
+fixture_bookings_resp = _execute_query(
+    supabase.table("fixture_bookings")
+    .select("id, email, fixture_id, created_at")
+    .eq("status", "confirmed")
+    .order("created_at"),
+    action="load_fixture_bookings",
+    user_message=(
+        "We couldn't load fixture confirmations. "
+        "Run supabase/fixtures_schema.sql if fixture tables are not created yet."
+    ),
+)
+fixture_bookings = fixture_bookings_resp.data if fixture_bookings_resp is not None else []
+
+if not fixture_bookings:
+    st.info("No active fixture confirmations.")
+else:
+    for booking in fixture_bookings:
+        with st.container(border=True):
+            c1, c2 = st.columns([5, 1])
+            with c1:
+                fixture = fixture_lookup.get(booking["fixture_id"], {})
+                if fixture:
+                    label = fixture_title(fixture)
+                    date_line = fmt_session_range(
+                        fixture["start_at"],
+                        fixture["end_at"],
+                    )
+                else:
+                    label = f"Fixture ID {booking['fixture_id']}"
+                    date_line = "Fixture details unavailable"
+                st.write(f"**{booking['email']}**")
+                st.caption(f"{label} | {date_line} | {booking['created_at']}")
+            with c2:
+                if st.button("Remove", key=f"rfb_{booking['id']}"):
+                    resp = remove_fixture_booking(booking["id"])
+                    _debug_action(
+                        "remove_fixture_booking",
+                        [resp],
+                        context=f"id={booking['id']} email={booking['email']}",
+                    )
+                    refresh()
+
+# --------------------------------------------------
+# FIXTURE MANAGEMENT
+# --------------------------------------------------
+st.divider()
+st.subheader("Fixtures")
+
+with st.expander("Add new fixture"):
+    today = datetime.now().date()
+    default_start = datetime.combine(today, time(13, 0))
+    default_end = datetime.combine(today, time(17, 0))
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        new_team_key = st.selectbox(
+            "Team",
+            options=list(FIXTURE_TEAMS.keys()),
+            format_func=lambda value: FIXTURE_TEAMS[value],
+            key="new_fixture_team_key",
+        )
+        new_start_at = st.datetime_input(
+            "Start time",
+            value=default_start,
+            key="new_fixture_start",
+        )
+        new_capacity = st.number_input(
+            "Capacity",
+            min_value=1,
+            value=11,
+            key="new_fixture_capacity",
+        )
+
+    with c2:
+        new_opponent = st.text_input(
+            "Opponent",
+            key="new_fixture_opponent",
+            placeholder="Example: Unabombers",
+        )
+        new_end_at = st.datetime_input(
+            "End time",
+            value=default_end,
+            key="new_fixture_end",
+        )
+        new_location = st.text_input(
+            "Location",
+            key="new_fixture_location",
+        )
+
+    new_title = st.text_input(
+        "Fixture title (optional)",
+        key="new_fixture_title",
+        placeholder="If empty, title falls back to '<Team> vs <Opponent>'.",
+    )
+    new_notes = st.text_input("Notes", key="new_fixture_notes")
+    new_locked = st.checkbox(
+        "Locked",
+        value=False,
+        key="new_fixture_locked",
+        help="When locked, players cannot confirm or cancel this fixture.",
+    )
+
+    if st.button("Create fixture", key="create_fixture_button"):
+        if new_end_at <= new_start_at:
+            st.warning("End time must be after start time.")
+        else:
+            payload = {
+                "team_key": new_team_key,
+                "title": new_title.strip() or None,
+                "opponent": new_opponent.strip() or None,
+                "start_at": new_start_at.isoformat(),
+                "end_at": new_end_at.isoformat(),
+                "capacity": int(new_capacity),
+                "location": new_location.strip() or None,
+                "notes": new_notes.strip() or None,
+                "locked": new_locked,
+            }
+            response = _execute_query(
+                supabase.table("fixtures").insert(payload),
+                action="create_fixture",
+                user_message=(
+                    "Could not create fixture. "
+                    "Run supabase/fixtures_schema.sql if fixture tables are missing."
+                ),
+            )
+            if response is not None:
+                _debug_action("create_fixture", [response], context=str(payload))
+                refresh()
+
+fixtures_resp = _execute_query(
+    supabase.table("fixture_availability")
+    .select("*")
+    .order("start_at"),
+    action="load_fixture_availability",
+    user_message=(
+        "Could not load fixtures. "
+        "Run supabase/fixtures_schema.sql if fixture tables are missing."
+    ),
+)
+fixtures = fixtures_resp.data if fixtures_resp is not None else []
+
+if not fixtures:
+    st.info("No fixtures found.")
+else:
+    team_keys = list(FIXTURE_TEAMS.keys())
+    for fixture in fixtures:
+        header = fixture_title(fixture)
+        date_line = fmt_session_range(fixture["start_at"], fixture["end_at"])
+        locked = bool(fixture.get("locked"))
+        lock_suffix = " [LOCKED]" if locked else ""
+        team_key = str(fixture.get("team_key") or "plucky").lower()
+        team_label = FIXTURE_TEAMS.get(team_key, team_key.title())
+
+        with st.expander(
+            (
+                f"{team_label}: {header} - {date_line} "
+                f"({fixture['confirmed_count']}/{fixture['capacity']}){lock_suffix}"
+            )
+        ):
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                start_at = st.datetime_input(
+                    "Start",
+                    value=parse_iso(fixture["start_at"]),
+                    key=f"fst_{fixture['id']}",
+                )
+                end_at = st.datetime_input(
+                    "End",
+                    value=parse_iso(fixture["end_at"]),
+                    key=f"fet_{fixture['id']}",
+                )
+                capacity = st.number_input(
+                    "Capacity",
+                    min_value=1,
+                    value=int(fixture["capacity"]),
+                    key=f"fcap_{fixture['id']}",
+                )
+
+            with c2:
+                team_value = st.selectbox(
+                    "Team",
+                    options=team_keys,
+                    index=team_keys.index(team_key) if team_key in team_keys else 0,
+                    format_func=lambda value: FIXTURE_TEAMS[value],
+                    key=f"fteam_{fixture['id']}",
+                )
+                opponent = st.text_input(
+                    "Opponent",
+                    value=str(fixture.get("opponent") or ""),
+                    key=f"fopp_{fixture['id']}",
+                )
+                location = st.text_input(
+                    "Location",
+                    value=str(fixture.get("location") or ""),
+                    key=f"floc_{fixture['id']}",
+                )
+
+            with c3:
+                title = st.text_input(
+                    "Title",
+                    value=str(fixture.get("title") or ""),
+                    key=f"ftitle_{fixture['id']}",
+                )
+                notes = st.text_input(
+                    "Notes",
+                    value=str(fixture.get("notes") or ""),
+                    key=f"fnotes_{fixture['id']}",
+                )
+                locked_toggle = st.checkbox(
+                    "Locked",
+                    value=locked,
+                    key=f"flocked_{fixture['id']}",
+                )
+
+            if st.button("Save fixture", key=f"save_fixture_{fixture['id']}"):
+                if end_at <= start_at:
+                    st.warning("End time must be after start time.")
+                else:
+                    payload = {
+                        "team_key": team_value,
+                        "title": title.strip() or None,
+                        "opponent": opponent.strip() or None,
+                        "start_at": start_at.isoformat(),
+                        "end_at": end_at.isoformat(),
+                        "capacity": int(capacity),
+                        "location": location.strip() or None,
+                        "notes": notes.strip() or None,
+                        "locked": locked_toggle,
+                    }
+                    response = _execute_query(
+                        supabase.table("fixtures")
+                        .update(payload)
+                        .eq("id", fixture["id"]),
+                        action="update_fixture",
+                        user_message="Could not update fixture.",
+                    )
+                    if response is not None:
+                        _debug_action(
+                            "update_fixture",
+                            [response],
+                            context=f"id={fixture['id']} payload={payload}",
+                        )
+                        refresh()
+
+            if st.button("Delete fixture", key=f"del_fixture_{fixture['id']}"):
+                response = _execute_query(
+                    supabase.table("fixtures").delete().eq("id", fixture["id"]),
+                    action="delete_fixture",
+                    user_message="Could not delete fixture.",
+                )
+                if response is not None:
+                    _debug_action(
+                        "delete_fixture",
+                        [response],
+                        context=f"id={fixture['id']}",
+                    )
+                    refresh()

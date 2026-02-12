@@ -5,6 +5,7 @@ A Streamlit app for managing training session bookings backed by Supabase.
 ## Features
 - Email-based registration and booking
 - Admin dashboard for approvals, sessions, and bookings
+- Team fixture confirmations (Plucky and Unabombers)
 - Supabase-backed storage
 
 ## Local Setup
@@ -50,3 +51,29 @@ pytest
 ## Notes
 - `.streamlit/secrets.toml` is ignored by Git to prevent accidental leaks.
 - To enable debug toggles in the UI, set `DEBUG_MODE = true` in Streamlit secrets.
+
+## Enable Fixture Tables
+To support `3_PluckyFixtures.py` and `4_UnabombersFixtures.py`, run:
+
+```sql
+-- Copy and run the SQL from:
+-- supabase/fixtures_schema.sql
+```
+
+In Supabase SQL Editor, paste the contents of `supabase/fixtures_schema.sql` and execute it.
+
+## Enable Profile Fields (Optional but recommended)
+To persist profile preferences, bio, and profile photo data, add these columns in Supabase SQL editor:
+
+```sql
+alter table public.registrations
+  add column if not exists preference text
+  check (preference in ('bowling', 'batting', 'both'))
+  default 'both';
+
+alter table public.registrations
+  add column if not exists bio text;
+
+alter table public.registrations
+  add column if not exists profile_photo_data text;
+```

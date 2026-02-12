@@ -21,7 +21,7 @@ from app_nav import render_compact_nav
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
-st.set_page_config(page_title="Nets Booking", layout="wide")
+st.set_page_config(page_title="Winter Nets", layout="wide")
 
 def _has_secret(key: str) -> bool:
     return key in st.secrets
@@ -55,8 +55,10 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-render_compact_nav("home")
-st.subheader("Login")
+render_compact_nav("winter_nets")
+st.subheader("Kings Winter Nets")
+st.text("Winter cricket nets are open for booking.")
+st.caption("Book your spot for our winter net sessions!")
 
 DEBUG = False
 if _secret_bool("DEBUG_MODE"):
@@ -350,52 +352,10 @@ def _wait_for_registration(email: str, timeout_s: float = 8.0, poll_interval_s: 
     return last_allowed, last_registration
 
 
-# --------------------------------------------------
-# EMAIL ENTRY
-# --------------------------------------------------
-if _get_auth_email():
-    email = _get_auth_email()
-else:
-    with st.form("email_lookup_form", clear_on_submit=False):
-        email_input = st.text_input(
-            "Your username / email address",
-            placeholder="you@example.com",
-            key=AUTH_EMAIL_INPUT_KEY,
-        )
-        submit_email = st.form_submit_button("Continue", use_container_width=True)
-
-    decision = evaluate_email_form(submit_email, email_input)
-    if decision.should_stop:
-        if decision.message_type == "info":
-            st.info(decision.message)
-        else:
-            st.warning(decision.message)
-        st.stop()
-
-    login_identifier = decision.email or ""
-    email, _, _, resolve_error = resolve_login_identifier(login_identifier)
-    if resolve_error == "lookup_error":
-        st.stop()
-    if resolve_error == "multiple_name_matches":
-        st.error("Multiple users share that full name. Please log in with your email.")
-        st.stop()
-    if resolve_error == "name_without_email":
-        st.error("This username has no linked email. Please contact an admin.")
-        st.stop()
-    if resolve_error == "username_not_found":
-        st.warning("Username not found. If you are new, enter your email to register.")
-        st.stop()
-    if not email:
-        st.warning(EMAIL_REQUIRED_MESSAGE)
-        st.stop()
-
-    if not _set_state_safe(AUTH_EMAIL_KEY, email):
-        st.stop()
-    if decision.should_rerun:
-        st.rerun()
-
+email = _get_auth_email()
 if not email:
-    st.info(EMAIL_REQUIRED_MESSAGE)
+    st.warning("Please sign in on Home first, then come back.")
+    st.page_link("Home.py", label="Go to login")
     st.stop()
 
 allowed, registration = get_email_status(email)
@@ -406,84 +366,9 @@ if st.session_state.get("just_registered"):
     st.success("Thanks! You're approved and can book now.")
     st.session_state.pop("just_registered", None)
 
-# --------------------------------------------------
-# INLINE REGISTRATION
-# --------------------------------------------------
 if not allowed and not registration:
-    st.subheader("First time here? Register")
-
-    name = st.text_input("Full name")
-
-    if st.button("Register"):
-        if not _is_valid_email(email):
-            st.warning("Please enter a valid email address before registering.")
-            st.stop()
-
-        clean_name = name.strip()
-        if not clean_name:
-            st.warning("Please enter your full name.")
-            st.stop()
-
-        with st.spinner("Registering and logging you in..."):
-            resp_reg = _execute_query(
-                supabase.table("registrations").insert(
-                    {
-                        "name": clean_name,
-                        "email": email,
-                        "status": "approved",
-                        "reviewed_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ),
-                action="register_user",
-                user_message="Registration failed. Please try again.",
-            )
-            if resp_reg is None:
-                st.stop()
-
-            resp_allow = allow_email(email, clean_name)
-            if resp_allow is None:
-                st.stop()
-
-            allowed, registration = _wait_for_registration(email)
-            if allowed is None and registration is None:
-                st.warning(
-                    "Registration saved, but we couldn't verify it yet. "
-                    "Please refresh and try again shortly."
-                )
-                st.stop()
-            if not allowed and not registration:
-                st.warning(
-                    "Registration saved, but we couldn't verify it yet. "
-                    "Please try again in a few seconds."
-                )
-                st.stop()
-
-        _debug_action(
-            "register_and_allow",
-            [resp_reg, resp_allow],
-            context=f"email={email}",
-        )
-
-        st.cache_data.clear()
-        ok = all(
-            [
-                _set_state_safe(
-                    AUTH_EMAIL_KEY,
-                    email,
-                    user_message="Registration worked, but we couldn't persist your session email.",
-                ),
-                _set_state_safe(
-                    "logged_in",
-                    True,
-                    user_message="Registration worked, but we couldn't complete sign-in. Please try again.",
-                ),
-                _set_state_safe("just_registered", True),
-            ]
-        )
-        if not ok:
-            st.stop()
-        st.rerun()
-
+    st.warning("You are not registered yet. Please register on Home first.")
+    st.page_link("Home.py", label="Go to login/registration")
     st.stop()
 
 # --------------------------------------------------
@@ -497,7 +382,6 @@ if allowed:
         if not _set_state_safe("logged_in", True):
             st.stop()
         st.rerun()
-    st.success(f"Welcome, {welcome_name}")
 
 elif registration:
     status = registration[0]["status"]
@@ -523,7 +407,6 @@ elif registration:
             if not _set_state_safe("logged_in", True):
                 st.stop()
             st.rerun()
-        st.success(f"Welcome, {welcome_name}")
 
     status_notice = registration_status_message(status)
     if status_notice:
@@ -534,12 +417,157 @@ elif registration:
             st.error(notice_message)
         st.stop()
 
+# --------------------------------------------------
+# LOAD DATA
+# --------------------------------------------------
+sessions_resp = _execute_query(
+    supabase.table("session_availability")
+    .select("*")
+    .order("start_at"),
+    action="load_sessions",
+    user_message="We couldn't load sessions right now. Please refresh and try again.",
+)
+if sessions_resp is None:
+    st.stop()
+sessions = sessions_resp.data or []
+
+if not sessions:
+    st.warning("No sessions found.")
+    st.stop()
+
+# Get ALL bookings for this email
+my_bookings_resp = _execute_query(
+    supabase.table("bookings_email")
+    .select("id, session_id")
+    .eq("email", email)
+    .eq("status", "confirmed"),
+    action="load_my_bookings",
+    user_message="We couldn't load your bookings right now. Please refresh and try again.",
+)
+if my_bookings_resp is None:
+    st.stop()
+my_bookings = my_bookings_resp.data or []
+
+# Map session_id -> booking_id
+my_bookings_by_session = {
+    b["session_id"]: b["id"] for b in my_bookings
+}
+
+# --------------------------------------------------
+# MY BOOKINGS
+# --------------------------------------------------
+st.subheader("My bookings")
+
+if not my_bookings:
+    st.info("No bookings yet.")
+else:
+    booked = []
+    for b in my_bookings:
+        s = next((x for x in sessions if x["id"] == b["session_id"]), None)
+        if s:
+            start_dt = parse_iso(s["start_at"])
+            booked.append((start_dt, s))
+
+    for start_dt, s in sorted(booked, key=lambda x: x[0]):
+        line = format_my_booking_line(s.get("notes"), fmt_start(s["start_at"]))
+        if s.get("locked"):
+            line = f"{line} _(locked)_"
+        if is_past(start_dt):
+            st.markdown(f"~~{line}~~")
+        else:
+            st.markdown(line)
+
 st.divider()
-st.subheader("Next steps")
-st.page_link("pages/2_WinterNets.py", label="Book Winter Nets", icon="🗓️")
-st.page_link("pages/3_PluckyFixtures.py", label="Plucky Fixtures", icon= "🗓️")
-st.page_link("pages/4_UnabombersFixtures.py", label="Unabombers Fixtures", icon= "🗓️")
-st.page_link("pages/1_Profile.py", label="Edit Profile", icon="👤")
-st.stop()
+
+# --------------------------------------------------
+# UI
+# --------------------------------------------------
+st.subheader("Book Available Sessions")
+
+open_sessions = [s for s in sessions if not s.get("locked")]
+
+if not open_sessions:
+    st.info("No sessions available to book right now.")
+
+for i, s in enumerate(open_sessions):
+    session_id = s["id"]
+    slots_remaining = s["slots_remaining"]
+    capacity = s["capacity"]
+
+    col1, col2, col3, col4 = st.columns([1, 0.5, 0.5, 3])
+
+    with col1:
+        st.markdown(f"##### {s.get('notes') or 'Net Session'}")
+        location = s.get("location") or ""
+        start_line = fmt_start(s["start_at"])
+        line = f"{start_line} - {location}" if location else start_line
+        st.markdown(f"###### {line}")
+        st.caption(f"Slots: **{slots_remaining} / {capacity}**")
+
+    with col2:
+        if session_id in my_bookings_by_session:
+            st.button(
+                "Booked",
+                disabled=True,
+                key=f"booked_{session_id}",
+            )
+        else:
+            if st.button(
+                "Book",
+                disabled=slots_remaining <= 0,
+                key=f"book_{session_id}",
+            ):
+                resp = _execute_query(
+                    supabase.rpc(
+                        "book_session_email",
+                        {
+                            "p_session_id": session_id,
+                            "p_email": email,
+                        },
+                    ),
+                    action="book_session_email",
+                    user_message="Booking failed. Please try again.",
+                    custom_error_message=booking_failure_message,
+                )
+                if resp is not None:
+                    _debug_action(
+                        "book_session_email",
+                        [resp],
+                        context=f"session_id={session_id} email={email}",
+                    )
+                    st.cache_data.clear()
+                    st.rerun()
+
+    with col3:
+        booking_id = my_bookings_by_session.get(session_id)
+
+        if booking_id:
+            if st.button("Cancel", key=f"cancel_{session_id}"):
+                resp = cancel_booking_email(booking_id)
+                if resp is None:
+                    st.stop()
+                _debug_action(
+                    "cancel_booking_email",
+                    [resp],
+                    context=f"booking_id={booking_id} session_id={session_id} email={email}",
+                )
+                st.toast("Booking cancelled")
+                st.cache_data.clear()
+                st.rerun()
+
+    attendees = get_attendee_names_for_session(session_id)
+    my_name = registration[0]["name"] if registration else None
+
+    with st.expander(f"Attendees ({len(attendees)})"):
+        if not attendees:
+            st.info("No one booked yet.")
+        else:
+            for n in attendees:
+                if my_name and n == my_name:
+                    st.markdown(f"- **{n} (You)**")
+                else:
+                    st.write(f"- {n}")
+    if i < len(open_sessions) - 1:
+        st.divider()
 
 
