@@ -1,6 +1,3 @@
-import re
-from pathlib import Path
-
 import streamlit as st
 
 from booking_rules import AUTH_EMAIL_INPUT_KEY, AUTH_EMAIL_KEY
@@ -9,10 +6,10 @@ from booking_rules import AUTH_EMAIL_INPUT_KEY, AUTH_EMAIL_KEY
 NAV_ITEMS = [
     {"key": "home", "label": "Login", "page": "Home.py"},
     {"key": "winter_nets", "label": "Nets", "page": "pages/2_WinterNets.py"},
-    {"key": "plucky_fixtures", "label": "Plucky", "page": "pages/3_PluckyFixtures.py"},
+    {"key": "plucky_fixtures", "label": "Plucky M's", "page": "pages/3_PluckyFixtures.py"},
     {
         "key": "unabombers_fixtures",
-        "label": "Bombers",
+        "label": "Unabombers",
         "page": "pages/4_UnabombersFixtures.py",
     },
     {"key": "profile", "label": "Profile", "page": "pages/1_Profile.py"},
@@ -26,7 +23,7 @@ TEAM_AFFILIATION_FIELD_CANDIDATES = (
 )
 TEAM_AFFILIATION_OPTIONS = {
     "not_set": "Not set",
-    "plucky": "Plucky",
+    "plucky": "Plucky M's",
     "unabombers": "Unabombers",
 }
 TEAM_AFFILIATION_VALUES = tuple(TEAM_AFFILIATION_OPTIONS.keys())
@@ -40,10 +37,7 @@ TEAM_AFFILIATION_ALIASES = {
     "bomber": "unabombers",
     "bombers": "unabombers",
 }
-TEAM_AFFILIATION_LOGO_PATHS = {
-    "plucky": Path("visuals/pluckys.png"),
-    "unabombers": Path("visuals/bombers.png"),
-}
+TEAM_AFFILIATION_KEYS = {"plucky", "unabombers"}
 
 
 def normalize_team_affiliation(value: str | None) -> str:
@@ -53,7 +47,7 @@ def normalize_team_affiliation(value: str | None) -> str:
     clean_value = clean_value.replace("-", "_").replace(" ", "_")
     if clean_value in TEAM_AFFILIATION_ALIASES:
         clean_value = TEAM_AFFILIATION_ALIASES[clean_value]
-    if clean_value in TEAM_AFFILIATION_LOGO_PATHS:
+    if clean_value in TEAM_AFFILIATION_KEYS:
         return clean_value
     return ""
 
@@ -97,25 +91,6 @@ def _clear_auth_state() -> None:
     st.session_state.pop(TEAM_AFFILIATION_SESSION_KEY, None)
 
 
-def _derive_welcome_text() -> str:
-    if not st.session_state.get("logged_in"):
-        return ""
-
-    stored_name = str(st.session_state.get("welcome_name") or "").strip()
-    if stored_name:
-        return f"Welcome, {stored_name}"
-
-    email = str(st.session_state.get(AUTH_EMAIL_KEY) or "").strip().lower()
-    if not email:
-        return "Welcome"
-
-    email_local = email.split("@", 1)[0]
-    normalized = re.sub(r"[._-]+", " ", email_local).strip()
-    if not normalized:
-        return "Welcome"
-    return f"Welcome, {normalized.title()}"
-
-
 def render_compact_nav(current_page: str, *, include_admin: bool = False) -> None:
     items = list(NAV_ITEMS)
     if include_admin:
@@ -129,68 +104,48 @@ def render_compact_nav(current_page: str, *, include_admin: bool = False) -> Non
     )
     nav_key = f"compact_nav_{current_page}_{'admin' if include_admin else 'main'}"
 
-    welcome_text = _derive_welcome_text()
-    affiliation_key = normalize_team_affiliation(
-        st.session_state.get(TEAM_AFFILIATION_SESSION_KEY)
-    )
-    affiliation_logo = TEAM_AFFILIATION_LOGO_PATHS.get(affiliation_key)
-
     st.markdown(
         """
 <style>
 div[data-testid="stSegmentedControl"] [role="radiogroup"] {
   gap: 0.08rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 div[data-testid="stSegmentedControl"] [role="radio"] {
-  padding-left: 0.48rem;
-  padding-right: 0.48rem;
-}
-.nav-welcome {
-  font-size: 0.98rem;
-  font-weight: 600;
-  line-height: 2.35rem;
+  padding-left: 0.44rem;
+  padding-right: 0.44rem;
   white-space: nowrap;
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  div[data-testid="stSegmentedControl"] [role="radio"] {
+    font-size: 0.82rem;
+    padding-left: 0.34rem;
+    padding-right: 0.34rem;
+  }
 }
 </style>
 """,
         unsafe_allow_html=True,
     )
 
-    nav_col, welcome_col = st.columns(
-        [7.8, 2.2],
-        gap="small",
+    selection = st.segmented_control(
+        "Navigate",
+        options=labels,
+        default=current_label,
+        selection_mode="single",
+        label_visibility="collapsed",
+        key=nav_key,
+        width="stretch",
     )
 
-    with nav_col:
-        selection = st.segmented_control(
-            "Navigate",
-            options=labels,
-            default=current_label,
-            selection_mode="single",
-            label_visibility="collapsed",
-            key=nav_key,
-            width="stretch",
-        )
+    if selection and selection != current_label:
+        st.switch_page(label_to_page[selection])
 
-        if selection and selection != current_label:
-            st.switch_page(label_to_page[selection])
-
-    with welcome_col:
-        if welcome_text:
-            if affiliation_logo and affiliation_logo.exists():
-                logo_col, text_col = st.columns([0.45, 1.55], gap="small")
-                with logo_col:
-                    st.image(str(affiliation_logo), width=44)
-                with text_col:
-                    st.markdown(
-                        f"<div class='nav-welcome'>{welcome_text}</div>",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.markdown(
-                    f"<div class='nav-welcome'>{welcome_text}</div>",
-                    unsafe_allow_html=True,
-                )
+    st.divider()
 
 def render_logout_footer(current_page: str) -> None:
     if not st.session_state.get("logged_in"):

@@ -56,7 +56,7 @@ supabase = create_client(
 )
 
 FIXTURE_TEAMS = {
-    "plucky": "Plucky",
+    "plucky": "Plucky M's",
     "unabombers": "Unabombers",
 }
 

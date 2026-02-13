@@ -4,6 +4,8 @@ import streamlit as st
 from supabase import create_client
 from streamlit.errors import StreamlitAPIException
 from datetime import datetime, timezone
+from pathlib import Path
+import re
 import time
 from booking_rules import (
     AUTH_EMAIL_INPUT_KEY,
@@ -63,6 +65,11 @@ supabase = create_client(
     st.secrets["SUPABASE_URL"],
     st.secrets["SUPABASE_ANON_KEY"],
 )
+
+AFFILIATION_LOGO_PATHS = {
+    "plucky": Path("visuals/pluckys.png"),
+    "unabombers": Path("visuals/bombers.png"),
+}
 
 render_compact_nav("home")
 st.subheader("Login")
@@ -358,6 +365,76 @@ def _wait_for_registration(email: str, timeout_s: float = 8.0, poll_interval_s: 
     return last_allowed, last_registration
 
 
+def _parse_affiliation_keys(raw_value: str | None) -> list[str]:
+    raw = str(raw_value or "").strip().lower()
+    if not raw:
+        return []
+
+    normalized = raw.replace("plucky m's", "plucky")
+    normalized = normalized.replace(" and ", ",")
+    normalized = re.sub(r"[&/|;+]", ",", normalized)
+
+    parts = [
+        part.strip().replace("-", "_").replace(" ", "_")
+        for part in normalized.split(",")
+        if part.strip()
+    ]
+
+    keys = []
+    for part in parts:
+        if part in {"both", "all"}:
+            for key in ("plucky", "unabombers"):
+                if key not in keys:
+                    keys.append(key)
+            continue
+
+        key = ""
+        if part in {"plucky", "pluckys", "plucky_ms"}:
+            key = "plucky"
+        elif part in {"unabombers", "unabomber", "bombers", "bomber"}:
+            key = "unabombers"
+
+        if key and key not in keys:
+            keys.append(key)
+
+    if not keys:
+        if "plucky" in normalized:
+            keys.append("plucky")
+        if "unabomb" in normalized or "bomber" in normalized:
+            keys.append("unabombers")
+
+    return keys
+
+
+def _get_affiliation_keys(registration_row: dict | None) -> list[str]:
+    if isinstance(registration_row, dict):
+        for field_name in ("team_affiliation", "club_affiliation", "affiliation"):
+            keys = _parse_affiliation_keys(registration_row.get(field_name))
+            if keys:
+                return keys
+
+    return _parse_affiliation_keys(st.session_state.get(TEAM_AFFILIATION_SESSION_KEY))
+
+
+def _render_welcome_banner(welcome_name: str, registration_row: dict | None = None) -> None:
+    affiliation_keys = _get_affiliation_keys(registration_row)
+    logo_paths = [
+        str(AFFILIATION_LOGO_PATHS[key])
+        for key in affiliation_keys
+        if key in AFFILIATION_LOGO_PATHS and AFFILIATION_LOGO_PATHS[key].exists()
+    ]
+
+    if not logo_paths:
+        st.success(f"Welcome, {welcome_name}")
+        return
+
+    message_col, logo_col = st.columns([8.4, 1.6], gap="small")
+    with message_col:
+        st.success(f"Welcome, {welcome_name}")
+    with logo_col:
+        st.image(logo_paths, width=44)
+
+
 # --------------------------------------------------
 # EMAIL ENTRY
 # --------------------------------------------------
@@ -508,7 +585,7 @@ if allowed:
         if not _set_state_safe("logged_in", True):
             st.stop()
         st.rerun()
-    st.success(f"Welcome, {welcome_name}")
+    _render_welcome_banner(welcome_name, registration[0] if registration else None)
 
 elif registration:
     status = registration[0]["status"]
@@ -534,7 +611,7 @@ elif registration:
             if not _set_state_safe("logged_in", True):
                 st.stop()
             st.rerun()
-        st.success(f"Welcome, {welcome_name}")
+        _render_welcome_banner(welcome_name, registration[0] if registration else None)
 
     status_notice = registration_status_message(status)
     if status_notice:
@@ -548,7 +625,7 @@ elif registration:
 st.divider()
 st.subheader("Next steps")
 st.page_link("pages/2_WinterNets.py", label="Book Winter Nets", icon="🗓️")
-st.page_link("pages/3_PluckyFixtures.py", label="Plucky Fixtures", icon= "🗓️")
+st.page_link("pages/3_PluckyFixtures.py", label="Plucky M's Fixtures", icon= "🗓️")
 st.page_link("pages/4_UnabombersFixtures.py", label="Unabombers Fixtures", icon= "🗓️")
 st.page_link("pages/1_Profile.py", label="Edit Profile", icon="👤")
 render_logout_footer("home")

@@ -5,7 +5,7 @@ A Streamlit app for managing training session bookings backed by Supabase.
 ## Features
 - Email-based registration and booking
 - Admin dashboard for approvals, sessions, and bookings
-- Team fixture confirmations (Plucky and Unabombers)
+- Team fixture confirmations (Plucky M's and Unabombers)
 - Supabase-backed storage
 
 ## Local Setup

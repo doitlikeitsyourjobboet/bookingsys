@@ -22,7 +22,7 @@ from booking_rules import (
 
 REQUIRED_SECRETS = ["SUPABASE_URL", "SUPABASE_ANON_KEY"]
 TEAM_LABELS = {
-    "plucky": "Plucky",
+    "plucky": "Plucky M's",
     "unabombers": "Unabombers",
 }
 FIXTURE_SCHEMA_HINT = (
