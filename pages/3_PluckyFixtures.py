@@ -3,7 +3,11 @@ import streamlit as st
 from fixtures_page import render_fixture_page
 
 
-st.set_page_config(page_title="Plucky Fixtures", layout="wide")
+st.set_page_config(
+    page_title="Plucky Fixtures",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 render_fixture_page(
     team_key="plucky",

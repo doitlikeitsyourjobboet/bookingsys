@@ -4,7 +4,12 @@ import streamlit as st
 from streamlit.errors import StreamlitAPIException
 from supabase import create_client
 
-from app_nav import render_compact_nav
+from app_nav import (
+    TEAM_AFFILIATION_SESSION_KEY,
+    render_compact_nav,
+    render_logout_footer,
+    sync_team_affiliation,
+)
 from booking_rules import (
     AUTH_EMAIL_INPUT_KEY,
     AUTH_EMAIL_KEY,
@@ -148,13 +153,7 @@ def render_fixture_page(
         st.secrets["SUPABASE_ANON_KEY"],
     )
 
-    debug = False
-    if _secret_bool("DEBUG_MODE"):
-        debug = st.sidebar.checkbox(
-            "Debug mode",
-            value=False,
-            key=f"{team_key}_debug_mode",
-        )
+    debug = _secret_bool("DEBUG_MODE")
 
     if debug and st.session_state.get("last_debug"):
         st.info("Last action debug")
@@ -245,7 +244,7 @@ def render_fixture_page(
 
         registration_resp = _execute_query(
             supabase.table("registrations")
-            .select("id, name, status")
+            .select("*")
             .eq("email", email),
             action="load_registration",
             user_message=(
@@ -381,6 +380,7 @@ def render_fixture_page(
         st.session_state.pop("allowed_sync_attempted", None)
         st.session_state.pop("just_registered", None)
         st.session_state.pop("welcome_name", None)
+        st.session_state.pop(TEAM_AFFILIATION_SESSION_KEY, None)
         st.session_state.pop("do_logout", None)
 
     current_page = {
@@ -402,6 +402,9 @@ def render_fixture_page(
     allowed, registration = _get_email_status(email)
     if allowed is None and registration is None:
         st.stop()
+
+    if registration and sync_team_affiliation(registration[0]):
+        st.rerun()
 
     if st.session_state.get("just_registered"):
         st.success("Thanks! You're approved and can book now.")
@@ -520,11 +523,13 @@ def render_fixture_page(
 
     if not fixtures:
         st.info(empty_message)
+        render_logout_footer(current_page)
         st.stop()
 
     open_fixtures = [fixture for fixture in fixtures if not fixture.get("locked")]
     if not open_fixtures:
         st.info("No fixtures are open for availability right now.")
+        render_logout_footer(current_page)
         st.stop()
 
     my_name = registration[0]["name"] if registration else None
@@ -601,3 +606,5 @@ def render_fixture_page(
 
         if index < len(open_fixtures) - 1:
             st.divider()
+
+    render_logout_footer(current_page)

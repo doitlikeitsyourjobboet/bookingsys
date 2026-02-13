@@ -19,8 +19,69 @@ NAV_ITEMS = [
 ]
 
 
-LEFT_LOGO_PATH = Path("visuals/pluckys.png")
-RIGHT_LOGO_PATH = Path("visuals/bombers.png")
+TEAM_AFFILIATION_SESSION_KEY = "team_affiliation"
+TEAM_AFFILIATION_FIELD_CANDIDATES = (
+    "team_affiliation",
+    "club_affiliation",
+)
+TEAM_AFFILIATION_OPTIONS = {
+    "not_set": "Not set",
+    "plucky": "Plucky",
+    "unabombers": "Unabombers",
+}
+TEAM_AFFILIATION_VALUES = tuple(TEAM_AFFILIATION_OPTIONS.keys())
+TEAM_AFFILIATION_ALIASES = {
+    "not_set": "",
+    "none": "",
+    "plucky": "plucky",
+    "pluckys": "plucky",
+    "unabomber": "unabombers",
+    "unabombers": "unabombers",
+    "bomber": "unabombers",
+    "bombers": "unabombers",
+}
+TEAM_AFFILIATION_LOGO_PATHS = {
+    "plucky": Path("visuals/pluckys.png"),
+    "unabombers": Path("visuals/bombers.png"),
+}
+
+
+def normalize_team_affiliation(value: str | None) -> str:
+    clean_value = str(value or "").strip().lower()
+    if not clean_value:
+        return ""
+    clean_value = clean_value.replace("-", "_").replace(" ", "_")
+    if clean_value in TEAM_AFFILIATION_ALIASES:
+        clean_value = TEAM_AFFILIATION_ALIASES[clean_value]
+    if clean_value in TEAM_AFFILIATION_LOGO_PATHS:
+        return clean_value
+    return ""
+
+
+def sync_team_affiliation(registration_record: dict | None) -> bool:
+    if not isinstance(registration_record, dict):
+        return False
+
+    field_name = next(
+        (
+            candidate
+            for candidate in TEAM_AFFILIATION_FIELD_CANDIDATES
+            if candidate in registration_record
+        ),
+        None,
+    )
+    if not field_name:
+        return False
+
+    normalized = normalize_team_affiliation(registration_record.get(field_name))
+    existing = normalize_team_affiliation(
+        st.session_state.get(TEAM_AFFILIATION_SESSION_KEY)
+    )
+    if normalized == existing:
+        return False
+
+    st.session_state[TEAM_AFFILIATION_SESSION_KEY] = normalized
+    return True
 
 
 def _clear_auth_state() -> None:
@@ -32,6 +93,8 @@ def _clear_auth_state() -> None:
     st.session_state.pop("just_registered", None)
     st.session_state.pop("do_logout", None)
     st.session_state.pop("welcome_name", None)
+    st.session_state.pop("admin_authed", None)
+    st.session_state.pop(TEAM_AFFILIATION_SESSION_KEY, None)
 
 
 def _derive_welcome_text() -> str:
@@ -67,7 +130,10 @@ def render_compact_nav(current_page: str, *, include_admin: bool = False) -> Non
     nav_key = f"compact_nav_{current_page}_{'admin' if include_admin else 'main'}"
 
     welcome_text = _derive_welcome_text()
-    show_logout = bool(st.session_state.get("logged_in"))
+    affiliation_key = normalize_team_affiliation(
+        st.session_state.get(TEAM_AFFILIATION_SESSION_KEY)
+    )
+    affiliation_logo = TEAM_AFFILIATION_LOGO_PATHS.get(affiliation_key)
 
     st.markdown(
         """
@@ -85,22 +151,15 @@ div[data-testid="stSegmentedControl"] [role="radio"] {
   line-height: 2.35rem;
   white-space: nowrap;
 }
-div[data-testid="stButton"] button[kind="primary"] {
-  min-height: 2.35rem;
-}
 </style>
 """,
         unsafe_allow_html=True,
     )
 
-    logo_left_col, nav_col, actions_col, logo_right_col = st.columns(
-        [0.6, 6.8, 2.6, 0.6],
+    nav_col, welcome_col = st.columns(
+        [7.8, 2.2],
         gap="small",
     )
-
-    with logo_left_col:
-        if LEFT_LOGO_PATH.exists():
-            st.image(str(LEFT_LOGO_PATH), width=52)
 
     with nav_col:
         selection = st.segmented_control(
@@ -116,28 +175,35 @@ div[data-testid="stButton"] button[kind="primary"] {
         if selection and selection != current_label:
             st.switch_page(label_to_page[selection])
 
-    with actions_col:
-        welcome_col, logout_col = st.columns([1.4, 1.2], gap="small")
-
-        with welcome_col:
-            if welcome_text:
+    with welcome_col:
+        if welcome_text:
+            if affiliation_logo and affiliation_logo.exists():
+                logo_col, text_col = st.columns([0.45, 1.55], gap="small")
+                with logo_col:
+                    st.image(str(affiliation_logo), width=44)
+                with text_col:
+                    st.markdown(
+                        f"<div class='nav-welcome'>{welcome_text}</div>",
+                        unsafe_allow_html=True,
+                    )
+            else:
                 st.markdown(
                     f"<div class='nav-welcome'>{welcome_text}</div>",
                     unsafe_allow_html=True,
                 )
 
-        with logout_col:
-            if show_logout and st.button(
-                "Log out",
-                key=f"nav_logout_{current_page}",
-                use_container_width=True,
-                type="primary",
-            ):
-                _clear_auth_state()
-                st.switch_page("Home.py")
-
-    with logo_right_col:
-        if RIGHT_LOGO_PATH.exists():
-            st.image(str(RIGHT_LOGO_PATH), width=52)
+def render_logout_footer(current_page: str) -> None:
+    if not st.session_state.get("logged_in"):
+        return
 
     st.divider()
+    _, logout_col = st.columns([8.5, 1.5], gap="small")
+    with logout_col:
+        if st.button(
+            "Log out",
+            key=f"footer_logout_{current_page}",
+            use_container_width=True,
+            type="primary",
+        ):
+            _clear_auth_state()
+            st.switch_page("Home.py")

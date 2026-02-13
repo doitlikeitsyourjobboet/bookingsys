@@ -16,12 +16,21 @@ from booking_rules import (
     is_valid_email,
     registration_status_message,
 )
-from app_nav import render_compact_nav
+from app_nav import (
+    TEAM_AFFILIATION_SESSION_KEY,
+    render_compact_nav,
+    render_logout_footer,
+    sync_team_affiliation,
+)
 
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
-st.set_page_config(page_title="Winter Nets", layout="wide")
+st.set_page_config(
+    page_title="Winter Nets",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 def _has_secret(key: str) -> bool:
     return key in st.secrets
@@ -60,9 +69,7 @@ st.subheader("Kings Winter Nets")
 st.text("Winter cricket nets are open for booking.")
 st.caption("Book your spot for our winter net sessions!")
 
-DEBUG = False
-if _secret_bool("DEBUG_MODE"):
-    DEBUG = st.sidebar.checkbox("Debug mode", value=False)
+DEBUG = _secret_bool("DEBUG_MODE")
 
 if DEBUG and st.session_state.get("last_debug"):
     st.info("Last action debug")
@@ -129,6 +136,7 @@ if st.session_state.get("do_logout"):
     st.session_state.pop("allowed_sync_attempted", None)
     st.session_state.pop("just_registered", None)
     st.session_state.pop("welcome_name", None)
+    st.session_state.pop(TEAM_AFFILIATION_SESSION_KEY, None)
     st.session_state.pop("do_logout", None)
 
 # --------------------------------------------------
@@ -148,7 +156,7 @@ def get_email_status(email):
 
     registration_resp = _execute_query(
         supabase.table("registrations")
-        .select("id, name, status")
+        .select("*")
         .eq("email", email),
         action="load_registration",
         user_message="We couldn't check your registration status right now. Please try again.",
@@ -362,6 +370,9 @@ allowed, registration = get_email_status(email)
 if allowed is None and registration is None:
     st.stop()
 
+if registration and sync_team_affiliation(registration[0]):
+    st.rerun()
+
 if st.session_state.get("just_registered"):
     st.success("Thanks! You're approved and can book now.")
     st.session_state.pop("just_registered", None)
@@ -570,4 +581,5 @@ for i, s in enumerate(open_sessions):
     if i < len(open_sessions) - 1:
         st.divider()
 
+render_logout_footer("winter_nets")
 

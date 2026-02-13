@@ -1,12 +1,16 @@
 import streamlit as st
 from supabase import create_client
 from datetime import datetime, timezone, time
-from app_nav import render_compact_nav
+from app_nav import render_compact_nav, render_logout_footer
 
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
-st.set_page_config(page_title="Admin – Nets Booking", layout="wide")
+st.set_page_config(
+    page_title="Admin – Nets Booking",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 render_compact_nav("admin", include_admin=True)
 
 def _has_secret(key: str) -> bool:
@@ -58,7 +62,7 @@ FIXTURE_TEAMS = {
 
 if _secret_bool("DEBUG_MODE"):
     role = supabase.rpc("debug_current_role").execute().data
-    st.sidebar.write("DB role:", role)
+    st.caption(f"DB role: {role}")
 
 # --------------------------------------------------
 # FORMATTERS
@@ -106,8 +110,7 @@ if not st.session_state.admin_authed:
 st.title("🛠️ Admin – Nets Booking")
 st.caption("Manage users, bookings, and sessions.")
 DEBUG = False
-if _secret_bool("DEBUG_MODE"):
-    DEBUG = st.sidebar.checkbox("Debug mode", value=False)
+DEBUG = _secret_bool("DEBUG_MODE")
 
 if DEBUG and st.session_state.get("last_debug"):
     st.info("Last action debug")
@@ -718,3 +721,5 @@ else:
                         context=f"id={fixture['id']}",
                     )
                     refresh()
+
+render_logout_footer("admin")

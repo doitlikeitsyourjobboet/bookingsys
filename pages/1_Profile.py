@@ -3,11 +3,24 @@ import base64
 import streamlit as st
 from supabase import create_client
 
-from app_nav import render_compact_nav
+from app_nav import (
+    TEAM_AFFILIATION_FIELD_CANDIDATES,
+    TEAM_AFFILIATION_OPTIONS,
+    TEAM_AFFILIATION_SESSION_KEY,
+    TEAM_AFFILIATION_VALUES,
+    normalize_team_affiliation,
+    render_compact_nav,
+    render_logout_footer,
+    sync_team_affiliation,
+)
 from booking_rules import AUTH_EMAIL_KEY, normalize_email
 
 
-st.set_page_config(page_title="My Profile", layout="wide")
+st.set_page_config(
+    page_title="My Profile",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 render_compact_nav("profile")
 
 
@@ -42,9 +55,7 @@ supabase = create_client(
     st.secrets["SUPABASE_ANON_KEY"],
 )
 
-DEBUG = False
-if _secret_bool("DEBUG_MODE"):
-    DEBUG = st.sidebar.checkbox("Debug mode", value=False)
+DEBUG = _secret_bool("DEBUG_MODE")
 
 PROFILE_PREFERENCE_OPTIONS = {
     "bowling": "Bowling",
@@ -57,6 +68,8 @@ PROFILE_PREFERENCE_FIELD_CANDIDATES = (
     "playing_preference",
     "player_preference",
 )
+PROFILE_AFFILIATION_OPTIONS = TEAM_AFFILIATION_OPTIONS
+PROFILE_AFFILIATION_VALUES = TEAM_AFFILIATION_VALUES
 PROFILE_BATTING_PREFERENCE_OPTIONS = {
     "not_set": "Not set",
     "orthodox": "Orthodox",
@@ -103,9 +116,32 @@ PROFILE_IMAGE_FIELD_CANDIDATES = (
     "avatar_data",
 )
 MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024
+PROFILE_AFFILIATION_SCHEMA_HINT = (
+    "The team affiliation value was rejected by the database. "
+    "Add/update `team_affiliation` using the SQL in README.md and try again."
+)
 
 
-def _execute_query(query, action: str, user_message: str):
+def _profile_update_failure_message(error: Exception | str) -> str:
+    text = str(error).lower()
+    if "team_affiliation" in text and (
+        "violates check constraint" in text
+        or "invalid input value" in text
+        or "value too long" in text
+        or "does not exist" in text
+    ):
+        return PROFILE_AFFILIATION_SCHEMA_HINT
+    return "We couldn't update your profile right now. Please try again."
+
+
+def _execute_query(
+    query,
+    action: str,
+    user_message: str,
+    *,
+    custom_error_message=None,
+    show_error_details: bool = False,
+):
     try:
         return query.execute()
     except Exception as exc:
@@ -113,7 +149,13 @@ def _execute_query(query, action: str, user_message: str):
             st.session_state.last_debug = f"Action: {action}\n\nError:\n{exc}"
             st.error(f"{action} failed")
             st.code(str(exc))
-        st.error(user_message)
+        if callable(custom_error_message):
+            st.error(custom_error_message(exc))
+        else:
+            st.error(user_message)
+        if show_error_details or DEBUG:
+            st.caption("Error details")
+            st.code(str(exc), language="text")
         return None
 
 
@@ -203,7 +245,7 @@ def _get_auth_email() -> str:
 
 st.title("My Profile")
 st.caption(
-    "Update your name, playing preference, batting and bowling styles, and profile photo."
+    "Update your name, team affiliation, playing preference, batting and bowling styles, and profile photo."
 )
 
 email = _get_auth_email()
@@ -238,6 +280,9 @@ if profile_name_for_header and st.session_state.get("welcome_name") != profile_n
 preference_field = _first_existing_field(
     profile_record, PROFILE_PREFERENCE_FIELD_CANDIDATES
 )
+affiliation_field = _first_existing_field(
+    profile_record, TEAM_AFFILIATION_FIELD_CANDIDATES
+)
 batting_preference_field = _first_existing_field(
     profile_record, PROFILE_BATTING_PREFERENCE_FIELD_CANDIDATES
 )
@@ -247,10 +292,24 @@ bowling_preference_field = _first_existing_field(
 bio_field = _first_existing_field(profile_record, PROFILE_BIO_FIELD_CANDIDATES)
 image_field = _first_existing_field(profile_record, PROFILE_IMAGE_FIELD_CANDIDATES)
 
+if DEBUG:
+    st.caption(
+        "Team affiliation field: "
+        + (affiliation_field if affiliation_field else "not found")
+    )
+
+if sync_team_affiliation(profile_record):
+    st.rerun()
+
 saved_preference = _normalize_profile_preference(
     profile_record.get(preference_field) if preference_field else None
 )
 saved_preference_index = PROFILE_PREFERENCE_VALUES.index(saved_preference)
+saved_affiliation = normalize_team_affiliation(
+    profile_record.get(affiliation_field) if affiliation_field else None
+)
+saved_affiliation_value = saved_affiliation or "not_set"
+saved_affiliation_index = PROFILE_AFFILIATION_VALUES.index(saved_affiliation_value)
 saved_batting_preference = _normalize_profile_choice(
     profile_record.get(batting_preference_field) if batting_preference_field else None,
     PROFILE_BATTING_PREFERENCE_VALUES,
@@ -295,6 +354,14 @@ with form_col:
             format_func=lambda value: PROFILE_PREFERENCE_OPTIONS[value],
             key="profile_preference_input",
             disabled=preference_field is None,
+        )
+        profile_affiliation = st.selectbox(
+            "Team affiliation",
+            options=list(PROFILE_AFFILIATION_VALUES),
+            index=saved_affiliation_index,
+            format_func=lambda value: PROFILE_AFFILIATION_OPTIONS[value],
+            key="profile_affiliation_input",
+            disabled=affiliation_field is None,
         )
         batting_preference = st.selectbox(
             "Batting style",
@@ -351,6 +418,10 @@ with form_col:
             updates = {"name": clean_name}
             if preference_field:
                 updates[preference_field] = profile_preference
+            if affiliation_field:
+                updates[affiliation_field] = (
+                    None if profile_affiliation == "not_set" else profile_affiliation
+                )
             if batting_preference_field:
                 updates[batting_preference_field] = (
                     None if batting_preference == "not_set" else batting_preference
@@ -379,6 +450,8 @@ with form_col:
                     .eq("id", profile_record["id"]),
                     action="update_profile",
                     user_message="We couldn't update your profile right now. Please try again.",
+                    custom_error_message=_profile_update_failure_message,
+                    show_error_details=True,
                 )
                 if resp_profile is not None:
                     _debug_action(
@@ -386,6 +459,10 @@ with form_col:
                         [resp_profile],
                         context=f"id={profile_record['id']} email={email}",
                     )
+                    if affiliation_field:
+                        st.session_state[TEAM_AFFILIATION_SESSION_KEY] = (
+                            normalize_team_affiliation(updates.get(affiliation_field))
+                        )
                     st.success("Profile updated.")
                     st.cache_data.clear()
                     st.rerun()
@@ -393,6 +470,8 @@ with form_col:
 missing_columns = []
 if preference_field is None:
     missing_columns.append("preference")
+if affiliation_field is None:
+    missing_columns.append("team_affiliation")
 if batting_preference_field is None:
     missing_columns.append("batting_preference")
 if bowling_preference_field is None:
@@ -407,3 +486,5 @@ if missing_columns:
         + ", ".join(missing_columns)
         + ". Add these columns to enable full profile editing."
     )
+
+render_logout_footer("profile")

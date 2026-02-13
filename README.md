@@ -63,13 +63,17 @@ To support `3_PluckyFixtures.py` and `4_UnabombersFixtures.py`, run:
 In Supabase SQL Editor, paste the contents of `supabase/fixtures_schema.sql` and execute it.
 
 ## Enable Profile Fields (Optional but recommended)
-To persist profile preferences (including batting and bowling style), bio, and profile photo data, add these columns in Supabase SQL editor:
+To persist profile preferences (including team affiliation, batting and bowling style), bio, and profile photo data, add these columns in Supabase SQL editor:
 
 ```sql
 alter table public.registrations
   add column if not exists preference text
   check (preference in ('bowling', 'batting', 'both'))
   default 'both';
+
+alter table public.registrations
+  add column if not exists team_affiliation text
+  check (team_affiliation in ('plucky', 'unabombers'));
 
 alter table public.registrations
   add column if not exists batting_preference text
