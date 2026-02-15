@@ -196,7 +196,7 @@ div[data-testid="stSegmentedControl"] [role="radio"] {
     if selection and selection != current_label:
         st.switch_page(label_to_page[selection])
 
-    st.divider()
+    #st.divider()
 
 def render_logout_footer(current_page: str) -> None:
     if not st.session_state.get("logged_in"):
