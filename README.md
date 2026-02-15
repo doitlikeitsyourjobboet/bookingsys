@@ -139,7 +139,10 @@ alter table public.registrations
   add constraint registrations_preferred_batting_position_check
     check (preferred_batting_position between 1 and 11),
   add constraint registrations_preferred_overs_phase_check
-    check (preferred_overs_phase in ('powerplay', 'middle', 'death')),
+    check (
+      preferred_overs_phase is null
+      or preferred_overs_phase ~ '^(powerplay|middle|death|opener)(, ?(powerplay|middle|death|opener))*$'
+    ),
   add constraint registrations_primary_position_check
     check (
       primary_position is null
@@ -147,4 +150,4 @@ alter table public.registrations
     );
 ```
 
-`team_affiliation`, `batting_style_traits`, `bowling_traits`, and `primary_position` are stored as comma-separated values.
+`team_affiliation`, `batting_style_traits`, `bowling_traits`, `preferred_overs_phase`, and `primary_position` are stored as comma-separated values.

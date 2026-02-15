@@ -219,10 +219,10 @@ PROFILE_BOWLING_TYPE_ALIASES = {
 PROFILE_BOWLING_PREFERENCE_ALIASES = PROFILE_BOWLING_TYPE_ALIASES
 
 PROFILE_OVERS_PHASE_OPTIONS = {
-    "not_set": "Not set",
     "powerplay": "Powerplay",
     "middle": "Middle Overs",
     "death": "Death Overs",
+    "opener": "Opener",
 }
 
 PROFILE_FIELDING_OPTIONS = {
@@ -660,12 +660,10 @@ saved_bowling_traits = _normalize_profile_multi_choice(
 )
 
 overs_phase_values = list(PROFILE_OVERS_PHASE_OPTIONS.keys())
-saved_overs_phase = _normalize_profile_choice(
+saved_overs_phase = _normalize_profile_multi_choice(
     profile_record.get(preferred_overs_phase_field) if preferred_overs_phase_field else None,
     tuple(overs_phase_values),
-    default="not_set",
 )
-saved_overs_phase_index = _choice_index(overs_phase_values, saved_overs_phase)
 
 saved_batting_position = _normalize_profile_choice(
     profile_record.get(preferred_batting_position_field)
@@ -814,10 +812,10 @@ with form_col:
             key="profile_bowling_traits_input",
             disabled=bowling_traits_field is None,
         )
-        preferred_overs_phase = st.selectbox(
+        preferred_overs_phase = st.multiselect(
             "Preferred overs phase",
             options=overs_phase_values,
-            index=saved_overs_phase_index,
+            default=saved_overs_phase,
             format_func=lambda value: PROFILE_OVERS_PHASE_OPTIONS[value],
             key="profile_overs_phase_input",
             disabled=preferred_overs_phase_field is None,
@@ -920,8 +918,8 @@ with form_col:
                     bowling_traits
                 )
             if updates is not None and preferred_overs_phase_field:
-                updates[preferred_overs_phase_field] = (
-                    None if preferred_overs_phase == "not_set" else preferred_overs_phase
+                updates[preferred_overs_phase_field] = _serialize_profile_multi_choice(
+                    preferred_overs_phase
                 )
             if updates is not None and preferred_batting_position_field:
                 updates[preferred_batting_position_field] = (
