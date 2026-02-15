@@ -62,30 +62,91 @@ To support `3_PluckyFixtures.py` and `4_UnabombersFixtures.py`, run:
 
 In Supabase SQL Editor, paste the contents of `supabase/fixtures_schema.sql` and execute it.
 
-## Enable Profile Fields (Optional but recommended)
-To persist profile preferences (including team affiliation, batting and bowling style), bio, and profile photo data, add these columns in Supabase SQL editor:
+## Enable Profile Fields (Copy/Paste for Supabase)
+Paste this whole script into Supabase SQL Editor and run it once:
 
 ```sql
 alter table public.registrations
-  add column if not exists preference text
-  check (preference in ('bowling', 'batting', 'both'))
-  default 'both';
+  add column if not exists preference text default 'both',
+  add column if not exists team_affiliation text,
+  add column if not exists batting_preference text,
+  add column if not exists bowling_preference text,
+  add column if not exists bio text,
+  add column if not exists profile_photo_data text,
+  add column if not exists player_id uuid,
+  add column if not exists full_name text,
+  add column if not exists nickname text,
+  add column if not exists date_of_birth date,
+  add column if not exists batting_hand text,
+  add column if not exists batting_style_traits text,
+  add column if not exists preferred_batting_position integer,
+  add column if not exists bowling_arm text,
+  add column if not exists bowling_traits text,
+  add column if not exists preferred_overs_phase text,
+  add column if not exists primary_position text;
 
 alter table public.registrations
-  add column if not exists team_affiliation text
-  check (team_affiliation in ('plucky', 'unabombers'));
+  drop constraint if exists registrations_preference_check,
+  drop constraint if exists registrations_team_affiliation_check,
+  drop constraint if exists registrations_batting_preference_check,
+  drop constraint if exists registrations_bowling_preference_check,
+  drop constraint if exists registrations_batting_hand_check,
+  drop constraint if exists registrations_bowling_arm_check,
+  drop constraint if exists registrations_preferred_batting_position_check,
+  drop constraint if exists registrations_preferred_overs_phase_check,
+  drop constraint if exists registrations_primary_position_check;
 
 alter table public.registrations
-  add column if not exists batting_preference text
-  check (batting_preference in ('orthodox', 'slogger'));
-
-alter table public.registrations
-  add column if not exists bowling_preference text
-  check (bowling_preference in ('fast', 'slow', 'right_arm', 'left_arm', 'off_spin', 'leg_spin'));
-
-alter table public.registrations
-  add column if not exists bio text;
-
-alter table public.registrations
-  add column if not exists profile_photo_data text;
+  add constraint registrations_preference_check
+    check (preference in ('bowling', 'batting', 'both')),
+  add constraint registrations_team_affiliation_check
+    check (team_affiliation in ('plucky', 'unabombers')),
+  add constraint registrations_batting_preference_check
+    check (batting_preference in (
+      'opener',
+      'top_order',
+      'middle_order',
+      'finisher',
+      'all_rounder',
+      'wicketkeeper',
+      'tailender'
+    )),
+  add constraint registrations_bowling_preference_check
+    check (bowling_preference in (
+      'fast',
+      'fast_medium',
+      'medium_fast',
+      'medium',
+      'slow_medium',
+      'off_spin',
+      'leg_spin',
+      'left_arm_orthodox',
+      'left_arm_wrist_spin',
+      'mystery_spin'
+    )),
+  add constraint registrations_batting_hand_check
+    check (batting_hand in ('right', 'left')),
+  add constraint registrations_bowling_arm_check
+    check (bowling_arm in ('right', 'left')),
+  add constraint registrations_preferred_batting_position_check
+    check (preferred_batting_position between 1 and 11),
+  add constraint registrations_preferred_overs_phase_check
+    check (preferred_overs_phase in ('powerplay', 'middle', 'death')),
+  add constraint registrations_primary_position_check
+    check (primary_position in (
+      'Slip',
+      'Gully',
+      'Point',
+      'Cover',
+      'Mid-Off',
+      'Mid-On',
+      'Mid-Wicket',
+      'Fine Leg',
+      'Third Man',
+      'Long On',
+      'Long Off',
+      'Wicketkeeper'
+    ));
 ```
+
+`batting_style_traits` and `bowling_traits` are stored as comma-separated keys.
