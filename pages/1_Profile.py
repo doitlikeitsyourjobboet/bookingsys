@@ -684,27 +684,25 @@ current_photo = _decode_profile_image(
     profile_record.get(image_field) if image_field else None
 )
 
-image_col, form_col = st.columns([1, 2])
+form_col, image_col = st.columns([2, 1])
 with image_col:
-    photo_col, badge_col = st.columns([3.2, 1.8], gap="small")
-    with photo_col:
-        st.caption("Profile photo")
-        if current_photo:
-            st.image(current_photo, width=180)
-        else:
-            st.info("No photo uploaded.")
-    with badge_col:
-        st.caption("Team logos")
-        if affiliation_logo_paths:
-            st.image(affiliation_logo_paths, width=44)
-        if has_other_affiliation:
-            st.caption("Other")
-        if not affiliation_logo_paths and not has_other_affiliation:
-            st.info("No team selected.")
+    st.caption("Profile photo")
+    if current_photo:
+        st.image(current_photo, width=180)
+    else:
+        st.info("No photo uploaded.")
+
+    st.caption("Team logos")
+    if affiliation_logo_paths:
+        st.image(affiliation_logo_paths, width=88)
+    if has_other_affiliation:
+        st.caption("Other")
+    if not affiliation_logo_paths and not has_other_affiliation:
+        st.info("No team selected.")
 
 with form_col:
     with st.form("profile_form", clear_on_submit=False):
-        st.markdown("#### Core Identity")
+        st.markdown("#### Identity")
         st.text_input(
             "Player ID",
             value=_as_text(

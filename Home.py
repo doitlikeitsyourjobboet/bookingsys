@@ -427,12 +427,9 @@ def _render_welcome_banner(welcome_name: str, registration_row: dict | None = No
     if not logo_paths:
         st.success(f"Welcome, {welcome_name}")
         return
-
-    message_col, logo_col = st.columns([8.4, 1.6], gap="small")
-    with message_col:
-        st.success(f"Welcome, {welcome_name}")
-    with logo_col:
-        st.image(logo_paths, width=44)
+    
+    st.image(logo_paths, width=64)
+    st.success(f"Welcome, {welcome_name}")
 
 
 # --------------------------------------------------
@@ -622,8 +619,8 @@ elif registration:
             st.error(notice_message)
         st.stop()
 
-st.divider()
-st.subheader("Next steps")
+#st.divider()
+#st.subheader("Next steps")
 st.page_link("pages/2_WinterNets.py", label="Book Winter Nets", icon="🗓️")
 st.page_link("pages/3_PluckyFixtures.py", label="Plucky M's Fixtures", icon= "🗓️")
 st.page_link("pages/4_UnabombersFixtures.py", label="Unabombers Fixtures", icon= "🗓️")

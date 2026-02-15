@@ -208,13 +208,20 @@ def render_logout_footer(current_page: str) -> None:
         return
 
     st.divider()
-    _, logout_col = st.columns([8.5, 1.5], gap="small")
-    with logout_col:
+
+    actions_col, _ = st.columns([1.6, 8.4], gap="small")
+    with actions_col:
         if st.button(
             "Log out",
             key=f"footer_logout_{current_page}",
-            use_container_width=True,
             type="primary",
         ):
             _clear_auth_state()
             st.switch_page("Home.py")
+
+        if current_page != "admin":
+            if st.button(
+                "Admin",
+                key=f"footer_admin_{current_page}",
+            ):
+                st.switch_page("pages/20_Admin.py")
