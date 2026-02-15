@@ -137,6 +137,7 @@ def render_fixture_page(
     caption: str,
     empty_message: str,
     default_fixture_label: str,
+    team_options: dict[str, dict[str, str]] | None = None,
 ) -> None:
     missing = [key for key in REQUIRED_SECRETS if not _has_secret(key)]
     if missing:
@@ -383,11 +384,22 @@ def render_fixture_page(
         st.session_state.pop(TEAM_AFFILIATION_SESSION_KEY, None)
         st.session_state.pop("do_logout", None)
 
-    current_page = {
-        "plucky": "plucky_fixtures",
-        "unabombers": "unabombers_fixtures",
-    }.get(team_key, "")
+    current_page = "fixtures"
     render_compact_nav(current_page)
+
+    if team_options:
+        team_name = st.selectbox(
+            "Team",
+            options=list(team_options.keys()),
+            key="fixtures_team",
+        )
+        selected_team = team_options[team_name]
+        team_key = selected_team["team_key"]
+        heading = selected_team["heading"]
+        description = selected_team["description"]
+        empty_message = selected_team["empty_message"]
+        default_fixture_label = selected_team["default_fixture_label"]
+        caption = selected_team.get("caption", caption)
 
     st.subheader(heading)
     st.text(description)

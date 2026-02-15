@@ -53,7 +53,7 @@ pytest
 - To enable debug toggles in the UI, set `DEBUG_MODE = true` in Streamlit secrets.
 
 ## Enable Fixture Tables
-To support `3_PluckyFixtures.py` and `4_UnabombersFixtures.py`, run:
+To support `3_Fixtures.py`, run:
 
 ```sql
 -- Copy and run the SQL from:

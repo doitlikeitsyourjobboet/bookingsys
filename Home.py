@@ -621,11 +621,8 @@ elif registration:
 
 #st.divider()
 #st.subheader("Next steps")
-st.page_link("pages/2_WinterNets.py", label="Book Winter Nets", icon="🗓️")
-st.page_link("pages/3_PluckyFixtures.py", label="Plucky M's Fixtures", icon= "🗓️")
-st.page_link("pages/4_UnabombersFixtures.py", label="Unabombers Fixtures", icon= "🗓️")
-st.page_link("pages/1_Profile.py", label="Edit Profile", icon="👤")
+st.page_link("pages/2_WinterNets.py", label="Book Winter Nets", icon="\U0001F5D3")
+st.page_link("pages/3_Fixtures.py", label="Fixtures", icon="\U0001F5D3")
+st.page_link("pages/1_Profile.py", label="Edit Profile", icon="\U0001F464")
 render_logout_footer("home")
 st.stop()
-
-

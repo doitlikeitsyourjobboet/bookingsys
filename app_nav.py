@@ -8,12 +8,7 @@ from booking_rules import AUTH_EMAIL_INPUT_KEY, AUTH_EMAIL_KEY
 NAV_ITEMS = [
     {"key": "home", "label": "Login", "page": "Home.py"},
     {"key": "winter_nets", "label": "Nets", "page": "pages/2_WinterNets.py"},
-    {"key": "plucky_fixtures", "label": "Plucky M's", "page": "pages/3_PluckyFixtures.py"},
-    {
-        "key": "unabombers_fixtures",
-        "label": "Unabombers",
-        "page": "pages/4_UnabombersFixtures.py",
-    },
+    {"key": "fixtures", "label": "Fixtures", "page": "pages/3_Fixtures.py"},
     {"key": "profile", "label": "Profile", "page": "pages/1_Profile.py"},
 ]
 
