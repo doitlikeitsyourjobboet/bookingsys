@@ -96,11 +96,19 @@ alter table public.registrations
   drop constraint if exists registrations_preferred_overs_phase_check,
   drop constraint if exists registrations_primary_position_check;
 
+update public.registrations
+set team_affiliation = null
+where team_affiliation is not null
+  and btrim(team_affiliation) = '';
+
 alter table public.registrations
   add constraint registrations_preference_check
     check (preference in ('bowling', 'batting', 'both')),
   add constraint registrations_team_affiliation_check
-    check (team_affiliation in ('plucky', 'unabombers')),
+    check (
+      team_affiliation is null
+      or team_affiliation ~ '^(plucky|unabombers|other)(, ?(plucky|unabombers|other))*$'
+    ),
   add constraint registrations_batting_preference_check
     check (batting_preference in (
       'opener',
@@ -133,20 +141,10 @@ alter table public.registrations
   add constraint registrations_preferred_overs_phase_check
     check (preferred_overs_phase in ('powerplay', 'middle', 'death')),
   add constraint registrations_primary_position_check
-    check (primary_position in (
-      'Slip',
-      'Gully',
-      'Point',
-      'Cover',
-      'Mid-Off',
-      'Mid-On',
-      'Mid-Wicket',
-      'Fine Leg',
-      'Third Man',
-      'Long On',
-      'Long Off',
-      'Wicketkeeper'
-    ));
+    check (
+      primary_position is null
+      or primary_position ~ '^(Slip|Gully|Point|Cover|Mid-Off|Mid-On|Mid-Wicket|Fine Leg|Third Man|Long On|Long Off|Wicketkeeper)(, ?(Slip|Gully|Point|Cover|Mid-Off|Mid-On|Mid-Wicket|Fine Leg|Third Man|Long On|Long Off|Wicketkeeper))*$'
+    );
 ```
 
-`batting_style_traits` and `bowling_traits` are stored as comma-separated keys.
+`team_affiliation`, `batting_style_traits`, `bowling_traits`, and `primary_position` are stored as comma-separated values.

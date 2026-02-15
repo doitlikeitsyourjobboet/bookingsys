@@ -1,3 +1,5 @@
+import re
+
 import streamlit as st
 
 from booking_rules import AUTH_EMAIL_INPUT_KEY, AUTH_EMAIL_KEY
@@ -25,31 +27,85 @@ TEAM_AFFILIATION_OPTIONS = {
     "not_set": "Not set",
     "plucky": "Plucky M's",
     "unabombers": "Unabombers",
+    "other": "Other",
 }
 TEAM_AFFILIATION_VALUES = tuple(TEAM_AFFILIATION_OPTIONS.keys())
 TEAM_AFFILIATION_ALIASES = {
     "not_set": "",
     "none": "",
     "plucky": "plucky",
+    "plucky_m_s": "plucky",
+    "plucky_ms": "plucky",
     "pluckys": "plucky",
     "unabomber": "unabombers",
     "unabombers": "unabombers",
     "bomber": "unabombers",
     "bombers": "unabombers",
+    "other": "other",
+    "others": "other",
+    "external": "other",
+    "guest": "other",
 }
-TEAM_AFFILIATION_KEYS = {"plucky", "unabombers"}
+TEAM_AFFILIATION_KEYS = {
+    key for key in TEAM_AFFILIATION_VALUES if key != "not_set"
+}
+TEAM_AFFILIATION_CANONICAL_ORDER = tuple(
+    key for key in TEAM_AFFILIATION_VALUES if key != "not_set"
+)
 
 
-def normalize_team_affiliation(value: str | None) -> str:
-    clean_value = str(value or "").strip().lower()
-    if not clean_value:
+def parse_team_affiliations(value) -> list[str]:
+    raw_values: list[str] = []
+    if isinstance(value, (list, tuple, set)):
+        raw_values = [str(item) for item in value]
+    else:
+        raw_values = [str(value or "")]
+
+    keys: list[str] = []
+    for raw in raw_values:
+        clean_raw = raw.strip().lower()
+        if not clean_raw:
+            continue
+
+        normalized = clean_raw.replace("plucky m's", "plucky")
+        normalized = normalized.replace(" and ", ",")
+        normalized = re.sub(r"[&/|;+]", ",", normalized)
+        parts = [
+            part.strip().replace("-", "_").replace(" ", "_")
+            for part in normalized.split(",")
+            if part.strip()
+        ]
+
+        for part in parts:
+            candidates = []
+            if part in {"both", "all"}:
+                candidates = ["plucky", "unabombers"]
+            else:
+                mapped = TEAM_AFFILIATION_ALIASES.get(part, part)
+                if mapped:
+                    candidates = [mapped]
+
+            for candidate in candidates:
+                if candidate in TEAM_AFFILIATION_KEYS and candidate not in keys:
+                    keys.append(candidate)
+
+        # Fallback heuristics for free-form values.
+        if "plucky" in normalized and "plucky" not in keys:
+            keys.append("plucky")
+        if ("unabomb" in normalized or "bomber" in normalized) and "unabombers" not in keys:
+            keys.append("unabombers")
+        if "other" in normalized and "other" not in keys:
+            keys.append("other")
+
+    return keys
+
+
+def normalize_team_affiliation(value) -> str:
+    keys = parse_team_affiliations(value)
+    if not keys:
         return ""
-    clean_value = clean_value.replace("-", "_").replace(" ", "_")
-    if clean_value in TEAM_AFFILIATION_ALIASES:
-        clean_value = TEAM_AFFILIATION_ALIASES[clean_value]
-    if clean_value in TEAM_AFFILIATION_KEYS:
-        return clean_value
-    return ""
+    ordered = [key for key in TEAM_AFFILIATION_CANONICAL_ORDER if key in keys]
+    return ",".join(ordered)
 
 
 def sync_team_affiliation(registration_record: dict | None) -> bool:

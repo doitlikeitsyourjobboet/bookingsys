@@ -1,6 +1,7 @@
 import base64
 import json
 from datetime import date
+from pathlib import Path
 
 import streamlit as st
 from supabase import create_client
@@ -11,6 +12,7 @@ from app_nav import (
     TEAM_AFFILIATION_SESSION_KEY,
     TEAM_AFFILIATION_VALUES,
     normalize_team_affiliation,
+    parse_team_affiliations,
     render_compact_nav,
     render_logout_footer,
     sync_team_affiliation,
@@ -170,7 +172,7 @@ PROFILE_BOWLING_TYPE_OPTIONS = {
     "off_spin": "Off Spin",
     "leg_spin": "Leg Spin",
     "left_arm_orthodox": "Left Arm Orthodox",
-    "left_arm_wrist_spin": "Left Arm Wrist Spin (Chinaman)",
+    "left_arm_wrist_spin": "Left Arm Wrist Spin",
 
     # Specialist
     "mystery_spin": "Mystery Spinner",
@@ -261,6 +263,10 @@ PROFILE_IMAGE_FIELD_CANDIDATES = (
     "avatar_data",
 )
 MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024
+AFFILIATION_LOGO_PATHS = {
+    "plucky": Path("visuals/pluckys.png"),
+    "unabombers": Path("visuals/bombers.png"),
+}
 
 PROFILE_AFFILIATION_SCHEMA_HINT = (
     "The team affiliation value was rejected by the database. "
@@ -430,6 +436,30 @@ def _serialize_profile_multi_choice(values: list[str]) -> str | None:
     return ",".join(selected) if selected else None
 
 
+def _normalize_fielding_positions(value) -> list[str]:
+    allowed = list(PROFILE_FIELDING_OPTIONS["primary_position"])
+    allowed_lookup = {
+        item.strip().lower().replace("-", " ").replace("_", " "): item
+        for item in allowed
+    }
+
+    raw_items: list[str] = []
+    if isinstance(value, (list, tuple, set)):
+        raw_items = [str(item) for item in value]
+    else:
+        raw = str(value or "").strip()
+        if raw:
+            raw_items = [item.strip() for item in raw.split(",") if item.strip()]
+
+    selected: list[str] = []
+    for item in raw_items:
+        key = item.strip().lower().replace("-", " ").replace("_", " ")
+        canonical = allowed_lookup.get(key)
+        if canonical and canonical not in selected:
+            selected.append(canonical)
+    return selected
+
+
 def _parse_profile_date(value) -> date | None:
     if isinstance(value, date):
         return value
@@ -572,11 +602,15 @@ saved_preference = _normalize_profile_preference(
     profile_record.get(preference_field) if preference_field else None
 )
 saved_preference_index = PROFILE_PREFERENCE_VALUES.index(saved_preference)
-saved_affiliation = normalize_team_affiliation(
+saved_affiliation_values = parse_team_affiliations(
     profile_record.get(affiliation_field) if affiliation_field else None
 )
-saved_affiliation_value = saved_affiliation or "not_set"
-saved_affiliation_index = PROFILE_AFFILIATION_VALUES.index(saved_affiliation_value)
+affiliation_logo_paths = [
+    str(AFFILIATION_LOGO_PATHS[key])
+    for key in saved_affiliation_values
+    if key in AFFILIATION_LOGO_PATHS and AFFILIATION_LOGO_PATHS[key].exists()
+]
+has_other_affiliation = "other" in saved_affiliation_values
 saved_batting_preference = _normalize_profile_choice(
     profile_record.get(batting_preference_field) if batting_preference_field else None,
     PROFILE_BATTING_PREFERENCE_VALUES,
@@ -642,27 +676,31 @@ saved_batting_position_index = _choice_index(
     PROFILE_BATTING_POSITION_OPTIONS, saved_batting_position
 )
 
-fielding_positions = ["Not set"] + list(PROFILE_FIELDING_OPTIONS["primary_position"])
-saved_primary_position_raw = _as_text(
-    profile_record.get(primary_position_field) if primary_position_field else ""
-).strip()
-saved_primary_position = (
-    saved_primary_position_raw
-    if saved_primary_position_raw in PROFILE_FIELDING_OPTIONS["primary_position"]
-    else "Not set"
+fielding_position_options = list(PROFILE_FIELDING_OPTIONS["primary_position"])
+saved_primary_positions = _normalize_fielding_positions(
+    profile_record.get(primary_position_field) if primary_position_field else None
 )
-saved_primary_position_index = _choice_index(fielding_positions, saved_primary_position)
 current_photo = _decode_profile_image(
     profile_record.get(image_field) if image_field else None
 )
 
 image_col, form_col = st.columns([1, 2])
 with image_col:
-    st.caption("Profile photo")
-    if current_photo:
-        st.image(current_photo, width=180)
-    else:
-        st.info("No photo uploaded.")
+    photo_col, badge_col = st.columns([3.2, 1.8], gap="small")
+    with photo_col:
+        st.caption("Profile photo")
+        if current_photo:
+            st.image(current_photo, width=180)
+        else:
+            st.info("No photo uploaded.")
+    with badge_col:
+        st.caption("Team logos")
+        if affiliation_logo_paths:
+            st.image(affiliation_logo_paths, width=44)
+        if has_other_affiliation:
+            st.caption("Other")
+        if not affiliation_logo_paths and not has_other_affiliation:
+            st.info("No team selected.")
 
 with form_col:
     with st.form("profile_form", clear_on_submit=False):
@@ -710,10 +748,10 @@ with form_col:
             key="profile_preference_input",
             disabled=preference_field is None,
         )
-        profile_affiliation = st.selectbox(
+        profile_affiliation = st.multiselect(
             "Team affiliation",
-            options=list(PROFILE_AFFILIATION_VALUES),
-            index=saved_affiliation_index,
+            options=[value for value in PROFILE_AFFILIATION_VALUES if value != "not_set"],
+            default=saved_affiliation_values,
             format_func=lambda value: PROFILE_AFFILIATION_OPTIONS[value],
             key="profile_affiliation_input",
             disabled=affiliation_field is None,
@@ -785,10 +823,10 @@ with form_col:
             disabled=preferred_overs_phase_field is None,
         )
         st.markdown("#### Fielding Profile")
-        primary_position = st.selectbox(
-            "Primary fielding position",
-            options=fielding_positions,
-            index=saved_primary_position_index,
+        primary_positions = st.multiselect(
+            "Preferred fielding positions",
+            options=fielding_position_options,
+            default=saved_primary_positions,
             key="profile_primary_position_input",
             disabled=primary_position_field is None,
         )
@@ -853,9 +891,8 @@ with form_col:
             if updates is not None and preference_field:
                 updates[preference_field] = profile_preference
             if updates is not None and affiliation_field:
-                updates[affiliation_field] = (
-                    None if profile_affiliation == "not_set" else profile_affiliation
-                )
+                normalized_affiliation = normalize_team_affiliation(profile_affiliation)
+                updates[affiliation_field] = normalized_affiliation or None
 
             if updates is not None and batting_hand_field:
                 updates[batting_hand_field] = (
@@ -894,8 +931,8 @@ with form_col:
                 )
 
             if updates is not None and primary_position_field:
-                updates[primary_position_field] = (
-                    None if primary_position == "Not set" else primary_position
+                updates[primary_position_field] = _serialize_profile_multi_choice(
+                    primary_positions
                 )
 
             if updates is not None and bio_field:
